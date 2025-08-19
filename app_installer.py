@@ -420,7 +420,7 @@ class InvokeX:
         apps_container.bind('<Leave>', _unbind_mousewheel)
     
     def create_tweaks_tab(self):
-        """Create the System Tweaks tab with action and restore buttons."""
+        """Create the System Tweaks tab with 3-button layout."""
         tweaks_frame = ttk.Frame(self.notebook)
         self.notebook.add(tweaks_frame, text="Tweaks")
         
@@ -441,80 +441,103 @@ class InvokeX:
                                 bg='#f0f0f0', fg='#7f8c8d')
         version_label.grid(row=0, column=0, pady=(45, 0), sticky='w')
         
-        # Create scrollable canvas for tweaks
-        canvas_frame = tk.Frame(tweaks_frame, bg='#f0f0f0')
-        canvas_frame.grid(row=1, column=0, sticky='nsew', padx=(0, 5))
-        canvas_frame.grid_columnconfigure(0, weight=1)
-        canvas_frame.grid_rowconfigure(0, weight=1)
-        
-        # Canvas and scrollbar
-        canvas = tk.Canvas(canvas_frame, bg='#f0f0f0', highlightthickness=0)
-        scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg='#f0f0f0')
-        
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # Tweaks container
-        tweaks_container = tk.Frame(scrollable_frame, bg='#f0f0f0')
-        tweaks_container.pack(fill='both', expand=True, padx=15)
+        # Create main container for tweaks (no scrolling for now to debug)
+        tweaks_container = tk.Frame(tweaks_frame, bg='#f0f0f0')
+        tweaks_container.grid(row=1, column=0, sticky='nsew', padx=15, pady=10)
         
         # Tweak 1: Hide Shutdown Options
-        self.create_tweak_section(tweaks_container,
-                                 "Hide Shutdown Options",
-                                 "Hide shutdown, sleep, and hibernate options from start menu (restart option preserved)",
-                                 "Hide Options",
-                                 "Restore Defaults",
-                                 lambda: self.remove_shutdown_from_startup_smart(),
-                                 lambda: self.restore_shutdown_options(),
-                                 has_registry=True)
+        self.create_single_tweak_with_3_buttons(tweaks_container,
+                                               "Hide Shutdown Options",
+                                               "Hide shutdown, sleep, and hibernate options from start menu (restart option preserved)",
+                                               "Hide Options",
+                                               "Restore Defaults", 
+                                               "Check Reg Keys",
+                                               lambda: self.remove_shutdown_from_startup_smart(),
+                                               lambda: self.restore_shutdown_options(),
+                                               lambda: self.check_registry_keys_for_tweak("Hide Shutdown Options"))
         
         # Tweak 2: Set Chrome As Default Browser
-        self.create_tweak_section(tweaks_container,
-                                 "Set Chrome As Default Browser",
-                                 "Set Google Chrome as default browser",
-                                 "Set Chrome Default",
-                                 "Restore Defaults",
-                                 lambda: self.set_chrome_as_default(),
-                                 lambda: self.reset_default_browser(),
-                                 has_registry=True)
+        self.create_single_tweak_with_3_buttons(tweaks_container,
+                                               "Set Chrome As Default Browser",
+                                               "Set Google Chrome as default browser",
+                                               "Set Chrome Default",
+                                               "Restore Defaults",
+                                               "Check Reg Keys", 
+                                               lambda: self.set_chrome_as_default(),
+                                               lambda: self.reset_default_browser(),
+                                               lambda: self.check_registry_keys_for_tweak("Set Chrome As Default Browser"))
         
         # Tweak 3: Power Management Settings
-        self.create_tweak_section(tweaks_container,
-                                 "Power Management Settings",
-                                 "Configure power settings (sleep/hibernate to never, lid close to do nothing)",
-                                 "Configure Power",
-                                 "Restore Defaults",
-                                 lambda: self.configure_power_management(),
-                                 lambda: self.reset_power_management(),
-                                 has_registry=True)
+        self.create_single_tweak_with_3_buttons(tweaks_container,
+                                               "Power Management Settings", 
+                                               "Configure power settings (sleep/hibernate to never, lid close to do nothing)",
+                                               "Configure Power",
+                                               "Restore Defaults",
+                                               "Check Reg Keys",
+                                               lambda: self.configure_power_management(),
+                                               lambda: self.reset_power_management(),
+                                               lambda: self.check_registry_keys_for_tweak("Power Management Settings"))
+    
+    def create_single_tweak_with_3_buttons(self, parent, title, description, btn1_text, btn2_text, btn3_text, btn1_func, btn2_func, btn3_func):
+        """Create a single tweak section with exactly 3 buttons side by side."""
+        # Container for this tweak
+        tweak_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
+        tweak_frame.pack(fill='x', pady=6, padx=8)
         
-        # Pack canvas and scrollbar
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        # Tweak info
+        info_frame = tk.Frame(tweak_frame, bg='white')
+        info_frame.pack(fill='x', padx=12, pady=10)
         
-        # Mouse wheel scrolling for tweaks
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        # Title
+        title_label = tk.Label(info_frame, text=title, 
+                              font=('Segoe UI', 11, 'bold'), 
+                              bg='white', fg='#2c3e50', anchor='w')
+        title_label.pack(anchor='w')
         
-        def _bind_mousewheel(event):
-            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        # Description
+        desc_label = tk.Label(info_frame, text=description, 
+                             font=('Segoe UI', 8), 
+                             bg='white', fg='#7f8c8d', anchor='w')
+        desc_label.pack(anchor='w', pady=(3, 0))
         
-        def _unbind_mousewheel(event):
-            canvas.unbind_all("<MouseWheel>")
+        # Buttons frame
+        buttons_frame = tk.Frame(info_frame, bg='white')
+        buttons_frame.pack(fill='x', pady=(10, 0))
         
-        # Bind mouse wheel only when hovering over the canvas area
-        canvas.bind('<Enter>', _bind_mousewheel)
-        canvas.bind('<Leave>', _unbind_mousewheel)
-        scrollable_frame.bind('<Enter>', _bind_mousewheel)
-        scrollable_frame.bind('<Leave>', _unbind_mousewheel)
-        tweaks_container.bind('<Enter>', _bind_mousewheel)
-        tweaks_container.bind('<Leave>', _unbind_mousewheel)
+        # Button 1 (Action)
+        btn1 = tk.Button(buttons_frame, text=btn1_text, 
+                        command=btn1_func,
+                        bg='#e74c3c', fg='white',
+                        font=('Segoe UI', 8, 'bold'),
+                        relief='flat', padx=15, pady=5,
+                        cursor='hand2')
+        btn1.pack(side='left', padx=(0, 8))
+        
+        # Button 2 (Restore)
+        btn2 = tk.Button(buttons_frame, text=btn2_text, 
+                        command=btn2_func,
+                        bg='#27ae60', fg='white',
+                        font=('Segoe UI', 8, 'bold'),
+                        relief='flat', padx=15, pady=5,
+                        cursor='hand2')
+        btn2.pack(side='left', padx=(0, 8))
+        
+        # Button 3 (Check Registry)
+        btn3 = tk.Button(buttons_frame, text=btn3_text, 
+                        command=btn3_func,
+                        bg='#3498db', fg='white',
+                        font=('Segoe UI', 8, 'bold'),
+                        relief='flat', padx=15, pady=5,
+                        cursor='hand2')
+        btn3.pack(side='left')
+        
+        # Hover effects
+        btn1.bind('<Enter>', lambda e: btn1.configure(bg='#c0392b'))
+        btn1.bind('<Leave>', lambda e: btn1.configure(bg='#e74c3c'))
+        btn2.bind('<Enter>', lambda e: btn2.configure(bg='#229954'))
+        btn2.bind('<Leave>', lambda e: btn2.configure(bg='#27ae60'))
+        btn3.bind('<Enter>', lambda e: btn3.configure(bg='#2980b9'))
+        btn3.bind('<Leave>', lambda e: btn3.configure(bg='#3498db'))
     
     def create_tweak_section(self, parent, title, description, action_text, restore_text, action_func, restore_func, has_registry=True):
         """
