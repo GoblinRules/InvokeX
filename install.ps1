@@ -32,6 +32,63 @@ Requirements:
 "@
 }
 
+function Test-InternetConnection {
+    """
+    Test internet connectivity using multiple methods.
+    Returns true if any method succeeds.
+    """
+    Write-Host "Testing internet connectivity..." -ForegroundColor Cyan
+    
+    # Method 1: Test with Invoke-WebRequest (most reliable for our use case)
+    try {
+        Write-Host "Method 1: Testing web connectivity..." -ForegroundColor Yellow
+        $response = Invoke-WebRequest -Uri "https://www.google.com" -TimeoutSec 10 -ErrorAction Stop
+        Write-Host "✓ Web connectivity test successful" -ForegroundColor Green
+        return $true
+    } catch {
+        Write-Host "Method 1 failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+    
+    # Method 2: Test with Test-NetConnection (PowerShell native)
+    try {
+        Write-Host "Method 2: Testing network connectivity..." -ForegroundColor Yellow
+        $testResult = Test-NetConnection -ComputerName "8.8.8.8" -Port 53 -InformationLevel Quiet
+        if ($testResult) {
+            Write-Host "✓ Network connectivity test successful" -ForegroundColor Green
+            return $true
+        }
+    } catch {
+        Write-Host "Method 2 failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+    
+    # Method 3: Test with ping (using cmd)
+    try {
+        Write-Host "Method 3: Testing ping connectivity..." -ForegroundColor Yellow
+        $pingResult = cmd /c "ping -n 1 8.8.8.8" 2>&1
+        if ($pingResult -match "Reply from") {
+            Write-Host "✓ Ping connectivity test successful" -ForegroundColor Green
+            return $true
+        }
+    } catch {
+        Write-Host "Method 3 failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+    
+    # Method 4: Test with nslookup
+    try {
+        Write-Host "Method 4: Testing DNS resolution..." -ForegroundColor Yellow
+        $dnsResult = nslookup google.com 2>&1
+        if ($dnsResult -match "Address:") {
+            Write-Host "✓ DNS resolution test successful" -ForegroundColor Green
+            return $true
+        }
+    } catch {
+        Write-Host "Method 4 failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+    
+    Write-Host "✗ All connectivity tests failed" -ForegroundColor Red
+    return $false
+}
+
 function Test-PythonInstalled {
     try {
         $pythonVersion = python --version 2>&1
@@ -254,12 +311,14 @@ function Test-Requirements {
         }
     }
     
-    # Check internet connection
-    try {
-        $response = Invoke-WebRequest -Uri "https://www.google.com" -TimeoutSec 5 -ErrorAction Stop
-        Write-Host "✓ Internet connection available" -ForegroundColor Green
-    } catch {
-        Write-Host "✗ No internet connection available" -ForegroundColor Red
+    # Check internet connection with improved testing
+    if (!(Test-InternetConnection)) {
+        Write-Host "✗ Internet connectivity issues detected" -ForegroundColor Red
+        Write-Host "Please check your network settings and try again." -ForegroundColor Yellow
+        Write-Host "If the issue persists, try:" -ForegroundColor Yellow
+        Write-Host "1. Running as Administrator" -ForegroundColor Yellow
+        Write-Host "2. Checking Windows Defender/antivirus settings" -ForegroundColor Yellow
+        Write-Host "3. Checking corporate firewall/proxy settings" -ForegroundColor Yellow
         return $false
     }
     
