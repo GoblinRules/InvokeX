@@ -1157,151 +1157,10 @@ class InvokeX:
                 except:
                     return "Unknown Windows Version"
     
-    def create_tweaks_tab(self):
-        """Create the System Tweaks tab with scrollable content."""
-        tweaks_frame = ttk.Frame(self.notebook)
-        self.notebook.add(tweaks_frame, text="Tweaks")
-        
-        # Configure grid weights for auto-scaling
-        tweaks_frame.grid_columnconfigure(0, weight=1)
-        tweaks_frame.grid_rowconfigure(2, weight=1)  # Make the canvas frame expandable
-        
-        # Title
-        title_label = tk.Label(tweaks_frame, text="System Tweaks", 
-                              font=('Segoe UI', 14, 'bold'), 
-                              bg='#f0f0f0', fg='#2c3e50')
-        title_label.grid(row=0, column=0, pady=(10, 5), sticky='w')
-        
-        # Windows version info (more compact)
-        windows_version = self.get_windows_version()
-        version_label = tk.Label(tweaks_frame, text=f"Detected: {windows_version}", 
-                                font=('Segoe UI', 8), 
-                                bg='#f0f0f0', fg='#7f8c8d')
-        version_label.grid(row=1, column=0, pady=(0, 5), sticky='w')
-        
-        # Create scrollable canvas for tweaks
-        canvas_frame = tk.Frame(tweaks_frame, bg='#f0f0f0')
-        canvas_frame.grid(row=2, column=0, sticky='nsew', padx=(0, 5))
-        canvas_frame.grid_columnconfigure(0, weight=1)
-        canvas_frame.grid_rowconfigure(0, weight=1)
-        
-        # Canvas and scrollbar
-        canvas = tk.Canvas(canvas_frame, bg='#f0f0f0', highlightthickness=0)
-        scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg='#f0f0f0')
-        
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # Tweaks container
-        tweaks_container = tk.Frame(scrollable_frame, bg='#f0f0f0')
-        tweaks_container.pack(fill='both', expand=True, padx=15)
-        
-        # Tweak 1: Hide Shutdown Options (Smart Detection)
-        self.create_tweak_section(tweaks_container,
-                                 "Hide Shutdown Options",
-                                 "Hide shutdown, sleep, and hibernate options from start menu (restart option preserved)",
-                                 "Hide Options",
-                                 lambda: self.remove_shutdown_from_startup_smart())
-        
-        # Tweak 2: Restore Shutdown Options
-        self.create_tweak_section(tweaks_container,
-                                 "Restore Shutdown Options",
-                                 "Restore shutdown, sleep, and hibernate options",
-                                 "Restore Options",
-                                 lambda: self.restore_shutdown_options())
-        
-        # Tweak 3: Set Chrome As Default Browser
-        self.create_tweak_section(tweaks_container,
-                                 "Set Chrome As Default",
-                                 "Set Google Chrome as the default browser",
-                                 "Set Chrome Default",
-                                 lambda: self.set_chrome_as_default())
-        
-        # Tweak 4: Restart System in 10 Seconds
-        self.create_tweak_section(tweaks_container,
-                                 "Restart System in 10 Seconds",
-                                 "Restart the system after a 10 second countdown",
-                                 "Restart in 10s",
-                                 lambda: self.restart_system_10s())
-        
-        # Tweak 5: Power Management Settings
-        self.create_tweak_section(tweaks_container,
-                                 "Power Management Settings",
-                                 "Set sleep/hibernate to never, power button to do nothing, lid close to do nothing",
-                                 "Configure Power",
-                                 lambda: self.configure_power_management())
-        
-        # Tweak 6: View Power Logs
-        self.create_tweak_section(tweaks_container,
-                                 "View Power Logs",
-                                 "Display power management event logs",
-                                 "View Logs",
-                                 lambda: self.view_power_logs())
-        
-        # Tweak 7: Check Registry Keys
-        self.create_tweak_section(tweaks_container,
-                                 "Check Registry Keys",
-                                 "Verify if shutdown hiding registry keys exist",
-                                 "Check Keys",
-                                 lambda: self.check_registry_keys())
-        
-        # Pack canvas and scrollbar
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-        
-        # Bind mouse wheel to canvas
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+    # Duplicate method removed - keeping only the 3-button version above
+
     
-    def create_tweak_section(self, parent, title, description, button_text, action_func):
-        """
-        Create a section for an individual system tweak.
-        
-        Args:
-            parent: The parent widget
-            title (str): Tweak title
-            description (str): Tweak description
-            button_text (str): Text for the action button
-            action_func: Function to call when button is clicked
-        """
-        # Container for each tweak (smaller size)
-        tweak_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
-        tweak_frame.pack(fill='x', pady=6, padx=8)
-        
-        # Tweak info
-        info_frame = tk.Frame(tweak_frame, bg='white')
-        info_frame.pack(fill='x', padx=12, pady=10)
-        
-        # Title and description
-        title_label = tk.Label(info_frame, text=title, 
-                              font=('Segoe UI', 11, 'bold'), 
-                              bg='white', fg='#2c3e50', anchor='w')
-        title_label.pack(anchor='w')
-        
-        desc_label = tk.Label(info_frame, text=description, 
-                             font=('Segoe UI', 8), 
-                             bg='white', fg='#7f8c8d', anchor='w')
-        desc_label.pack(anchor='w', pady=(3, 0))
-        
-        # Action button
-        action_btn = tk.Button(info_frame, text=button_text, 
-                              command=action_func,
-                              bg='#e74c3c', fg='white', 
-                              font=('Segoe UI', 8, 'bold'),
-                              relief='flat', padx=15, pady=5,
-                              cursor='hand2')
-        action_btn.pack(anchor='w', pady=(10, 0))
-        
-        # Hover effects
-        action_btn.bind('<Enter>', lambda e: action_btn.configure(bg='#c0392b'))
-        action_btn.bind('<Leave>', lambda e: action_btn.configure(bg='#e74c3c'))
+
     
     def run_powershell_command(self, command):
         """
@@ -2458,6 +2317,16 @@ class InvokeX:
             error_msg = f"Failed to reset power management: {str(e)}"
             self.log_to_terminal(error_msg, "error")
             messagebox.showerror("Error", error_msg)
+    
+    def clear_power_logs(self):
+        """Clear power management logs display."""
+        self.log_to_terminal("Power logs cleared.", "info")
+        # This would clear the logs display if we had a logs window
+    
+    def clear_registry_results(self):
+        """Clear registry check results display."""
+        self.log_to_terminal("Registry results cleared.", "info")
+        # This would clear the results display if we had a results window
 
 def main():
     """
