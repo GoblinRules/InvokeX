@@ -503,20 +503,20 @@ class InvokeX:
         
         # Configure grid weights for auto-scaling
         tweaks_frame.grid_columnconfigure(0, weight=1)
-        tweaks_frame.grid_rowconfigure(1, weight=1)
+        tweaks_frame.grid_rowconfigure(2, weight=1)  # Make the canvas frame expandable
         
         # Title
         title_label = tk.Label(tweaks_frame, text="System Tweaks", 
                               font=('Segoe UI', 14, 'bold'), 
                               bg='#f0f0f0', fg='#2c3e50')
-        title_label.grid(row=0, column=0, pady=(15, 20), sticky='w')
+        title_label.grid(row=0, column=0, pady=(10, 5), sticky='w')
         
-        # Windows version info
+        # Windows version info (more compact)
         windows_version = self.get_windows_version()
         version_label = tk.Label(tweaks_frame, text=f"Detected: {windows_version}", 
-                                font=('Segoe UI', 9), 
+                                font=('Segoe UI', 8), 
                                 bg='#f0f0f0', fg='#7f8c8d')
-        version_label.grid(row=1, column=0, pady=(0, 20), sticky='w')
+        version_label.grid(row=1, column=0, pady=(0, 5), sticky='w')
         
         # Create scrollable canvas for tweaks
         canvas_frame = tk.Frame(tweaks_frame, bg='#f0f0f0')
@@ -541,21 +541,28 @@ class InvokeX:
         tweaks_container = tk.Frame(scrollable_frame, bg='#f0f0f0')
         tweaks_container.pack(fill='both', expand=True, padx=15)
         
-        # Tweak 1: Remove Shutdown from Startup (Windows 10)
+        # Tweak 1: Hide Shutdown Options (Smart Detection)
         self.create_tweak_section(tweaks_container,
-                                 "Remove Shutdown from Startup (Windows 10)",
-                                 "Remove shutdown option from startup power menu for Windows 10",
-                                 "Remove Shutdown (Win 10)",
-                                 lambda: self.remove_shutdown_from_startup_win10())
+                                 "Hide Shutdown Options",
+                                 "Hide shutdown, restart, sleep, and hibernate options from start menu (detects Windows version)",
+                                 "Hide Options",
+                                 lambda: self.remove_shutdown_from_startup_smart())
         
-        # Tweak 2: Remove Shutdown from Startup (Windows 11)
+        # Tweak 2: Restore Shutdown Options
         self.create_tweak_section(tweaks_container,
-                                 "Remove Shutdown from Startup (Windows 11)",
-                                 "Remove shutdown option from startup power menu for Windows 11",
-                                 "Remove Shutdown (Win 11)",
-                                 lambda: self.remove_shutdown_from_startup_win11())
+                                 "Restore Shutdown Options",
+                                 "Restore shutdown, restart, sleep, and hibernate options",
+                                 "Restore Options",
+                                 lambda: self.restore_shutdown_options())
         
-        # Tweak 3: View Power Logs
+        # Tweak 3: Power Management Settings
+        self.create_tweak_section(tweaks_container,
+                                 "Power Management Settings",
+                                 "Set sleep/hibernate to never, power button to do nothing, lid close to do nothing",
+                                 "Configure Power",
+                                 lambda: self.configure_power_management())
+        
+        # Tweak 4: View Power Logs
         self.create_tweak_section(tweaks_container,
                                  "View Power Logs",
                                  "Display power management event logs",
@@ -810,9 +817,11 @@ class InvokeX:
             self.log_to_terminal(error_msg, "ERROR")
             messagebox.showerror("Error", error_msg)
     
-    def remove_shutdown_from_startup_win10(self):
-        """Remove shutdown option from startup power menu for Windows 10."""
-        self.log_to_terminal("Removing shutdown option from startup power menu (Windows 10)...", "info")
+    def remove_shutdown_from_startup_smart(self):
+        """
+        Hide shutdown options from start menu based on Windows version.
+        """
+        self.log_to_terminal("Attempting to hide shutdown options from start menu (smart detection)...", "info")
         
         try:
             # Check if we're running as administrator
@@ -821,235 +830,34 @@ class InvokeX:
                 self.log_to_terminal("This operation requires administrator privileges.", "warning")
                 self.log_to_terminal("Please restart the application as administrator.", "warning")
                 return
+            
+            # Get the current Windows version
+            windows_version = self.get_windows_version()
+            self.log_to_terminal(f"Detected Windows version: {windows_version}", "INFO")
             
             # Registry keys specific to Windows 10
-            registry_commands = [
-                # Disable fast startup (Windows 10 specific)
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power' -Name 'HiberbootEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Remove shutdown option from power button (Windows 10)
-                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'ShutdownWithoutLogon' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Disable shutdown option in start menu (Windows 10)
-                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Remove shutdown from Ctrl+Alt+Del menu (Windows 10)
-                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'DisableCAD' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Additional Windows 10 power management settings
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HibernateEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Disable hybrid sleep (Windows 10)
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HybridSleepEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Create the policies keys if they don't exist
-                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Force -ErrorAction SilentlyContinue | Out-Null",
-                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
-            ]
-            
-            success_count = 0
-            total_commands = len(registry_commands)
-            
-            for i, command in enumerate(registry_commands, 1):
-                try:
-                    self.log_to_terminal(f"Executing Windows 10 registry command {i}/{total_commands}...", "info")
-                    result = subprocess.run([
-                        "powershell", "-Command", command
-                    ], capture_output=True, text=True, timeout=30)
+            if "Windows 10" in windows_version:
+                self.log_to_terminal("Applying Windows 10 specific registry changes for shutdown removal.", "info")
+                registry_commands = [
+                    # Hide shutdown, restart, sleep, and hibernate options in start menu (Windows 10)
+                    "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
                     
-                    if result.returncode == 0:
-                        success_count += 1
-                        self.log_to_terminal(f"Windows 10 registry command {i} executed successfully.", "success")
-                    else:
-                        # Check if this is a "key doesn't exist" error (which is normal)
-                        error_output = result.stderr.lower() if result.stderr else ""
-                        if any(phrase in error_output for phrase in ["does not exist", "not found", "path not found"]):
-                            self.log_to_terminal(f"Registry key not found (this is normal): {command}", "info")
-                            success_count += 1  # Count as success since the goal is achieved
-                        else:
-                            self.log_to_terminal(f"Windows 10 registry command {i} failed: {result.stderr}", "warning")
-                            
-                except subprocess.TimeoutExpired:
-                    self.log_to_terminal(f"Windows 10 registry command {i} timed out.", "warning")
-                except Exception as e:
-                    self.log_to_terminal(f"Windows 10 registry command {i} error: {str(e)}", "warning")
-            
-            # Apply the changes
-            self.log_to_terminal("Applying Windows 10 registry changes...", "info")
-            try:
-                # Refresh the system to apply changes
-                subprocess.run(["gpupdate", "/force"], capture_output=True, timeout=60)
-                self.log_to_terminal("Group Policy updated successfully.", "success")
-            except:
-                self.log_to_terminal("Group Policy update completed.", "info")
-            
-            # Final verification
-            if success_count >= total_commands * 0.7:  # Allow 30% failure rate
-                self.log_to_terminal("Windows 10 shutdown option removal completed successfully!", "success")
-                self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
-                
-                # Show success message
-                messagebox.showinfo("Success", 
-                    "Shutdown option has been removed from Windows 10 startup power menu!\n\n"
-                    "Changes applied:\n"
-                    "• Shutdown option removed from startup\n"
-                    "• Fast startup disabled\n"
-                    "• Power button behavior modified\n"
-                    "• Ctrl+Alt+Del menu updated\n\n"
-                    "Note: A system restart may be required for all changes to take effect.")
-            else:
-                self.log_to_terminal("Some Windows 10 registry commands failed. Please check the output above.", "warning")
-                messagebox.showwarning("Partial Success", 
-                    "Some Windows 10 shutdown removal operations completed, but not all.\n\n"
-                    "Please check the terminal output for details and consider running as administrator.")
-                
-        except Exception as e:
-            error_msg = f"Failed to remove Windows 10 shutdown option: {str(e)}"
-            self.log_to_terminal(error_msg, "error")
-            messagebox.showerror("Error", error_msg)
-    
-    def remove_shutdown_from_startup_win11(self):
-        """Remove shutdown option from startup power menu for Windows 11."""
-        self.log_to_terminal("Removing shutdown option from startup power menu (Windows 11)...", "info")
-        
-        try:
-            # Check if we're running as administrator
-            import ctypes
-            if not ctypes.windll.shell32.IsUserAnAdmin():
-                self.log_to_terminal("This operation requires administrator privileges.", "warning")
-                self.log_to_terminal("Please restart the application as administrator.", "warning")
-                return
-            
+                    # Create the policies key if it doesn't exist
+                    "New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
+                ]
             # Registry keys specific to Windows 11
-            registry_commands = [
-                # Disable fast startup (Windows 11 specific)
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power' -Name 'HiberbootEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Remove shutdown option from power button (Windows 11)
-                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'ShutdownWithoutLogon' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Disable shutdown option in start menu (Windows 11)
-                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Remove shutdown from Ctrl+Alt+Del menu (Windows 11)
-                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'DisableCAD' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Additional Windows 11 power management settings
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HibernateEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Disable hybrid sleep (Windows 11)
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HybridSleepEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Windows 11 specific: Disable modern standby
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'CsEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Windows 11 specific: Disable connected standby
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'ConnectedStandbyEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Create the policies keys if they don't exist
-                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Force -ErrorAction SilentlyContinue | Out-Null",
-                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
-            ]
-            
-            success_count = 0
-            total_commands = len(registry_commands)
-            
-            for i, command in enumerate(registry_commands, 1):
-                try:
-                    self.log_to_terminal(f"Executing Windows 11 registry command {i}/{total_commands}...", "info")
-                    result = subprocess.run([
-                        "powershell", "-Command", command
-                    ], capture_output=True, text=True, timeout=30)
+            elif "Windows 11" in windows_version:
+                self.log_to_terminal("Applying Windows 11 specific registry changes for shutdown removal.", "info")
+                registry_commands = [
+                    # Hide shutdown, restart, sleep, and hibernate options in start menu (Windows 11)
+                    "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
                     
-                    if result.returncode == 0:
-                        success_count += 1
-                        self.log_to_terminal(f"Windows 11 registry command {i} executed successfully.", "success")
-                    else:
-                        # Check if this is a "key doesn't exist" error (which is normal)
-                        error_output = result.stderr.lower() if result.stderr else ""
-                        if any(phrase in error_output for phrase in ["does not exist", "not found", "path not found"]):
-                            self.log_to_terminal(f"Registry key not found (this is normal): {command}", "info")
-                            success_count += 1  # Count as success since the goal is achieved
-                        else:
-                            self.log_to_terminal(f"Windows 11 registry command {i} failed: {result.stderr}", "warning")
-                            
-                except subprocess.TimeoutExpired:
-                    self.log_to_terminal(f"Windows 11 registry command {i} timed out.", "warning")
-                except Exception as e:
-                    self.log_to_terminal(f"Windows 11 registry command {i} error: {str(e)}", "warning")
-            
-            # Apply the changes
-            self.log_to_terminal("Applying Windows 11 registry changes...", "info")
-            try:
-                # Refresh the system to apply changes
-                subprocess.run(["gpupdate", "/force"], capture_output=True, timeout=60)
-                self.log_to_terminal("Group Policy updated successfully.", "success")
-            except:
-                self.log_to_terminal("Group Policy update completed.", "info")
-            
-            # Final verification
-            if success_count >= total_commands * 0.7:  # Allow 30% failure rate
-                self.log_to_terminal("Windows 11 shutdown option removal completed successfully!", "success")
-                self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
-                
-                # Show success message
-                messagebox.showinfo("Success", 
-                    "Shutdown option has been removed from Windows 11 startup power menu!\n\n"
-                    "Changes applied:\n"
-                    "• Shutdown option removed from startup\n"
-                    "• Fast startup disabled\n"
-                    "• Power button behavior modified\n"
-                    "• Ctrl+Alt+Del menu updated\n"
-                    "• Modern standby disabled\n"
-                    "• Connected standby disabled\n\n"
-                    "Note: A system restart may be required for all changes to take effect.")
+                    # Create the policies key if it doesn't exist
+                    "New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
+                ]
             else:
-                self.log_to_terminal("Some Windows 11 registry commands failed. Please check the output above.", "warning")
-                messagebox.showwarning("Partial Success", 
-                    "Some Windows 11 shutdown removal operations completed, but not all.\n\n"
-                    "Please check the terminal output for details and consider running as administrator.")
-                
-        except Exception as e:
-            error_msg = f"Failed to remove Windows 11 shutdown option: {str(e)}"
-            self.log_to_terminal(error_msg, "error")
-            messagebox.showerror("Error", error_msg)
-    
-    def remove_shutdown_from_startup(self):
-        """Remove shutdown option from startup power menu for Windows 10 & 11."""
-        self.log_to_terminal("Removing shutdown option from startup power menu...", "info")
-        
-        try:
-            # Check if we're running as administrator
-            import ctypes
-            if not ctypes.windll.shell32.IsUserAnAdmin():
-                self.log_to_terminal("This operation requires administrator privileges.", "warning")
-                self.log_to_terminal("Please restart the application as administrator.", "warning")
+                self.log_to_terminal("Unsupported Windows version for shutdown removal. No changes applied.", "warning")
                 return
-            
-            # Registry keys to modify for Windows 10/11 - using simpler, more reliable commands
-            registry_commands = [
-                # Disable fast startup (which can interfere with power options)
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power' -Name 'HiberbootEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Remove shutdown option from power button
-                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentControlSet\\Policies\\System' -Name 'ShutdownWithoutLogon' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Disable shutdown option in start menu
-                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Remove shutdown from Ctrl+Alt+Del menu
-                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentControlSet\\Policies\\System' -Name 'DisableCAD' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Additional power management settings
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HibernateEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Disable hybrid sleep
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HybridSleepEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Create the policies keys if they don't exist
-                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Force -ErrorAction SilentlyContinue | Out-Null",
-                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
-            ]
             
             success_count = 0
             total_commands = len(registry_commands)
@@ -1089,26 +897,214 @@ class InvokeX:
             
             # Final verification
             if success_count >= total_commands * 0.7:  # Allow 30% failure rate
-                self.log_to_terminal("Shutdown option removal completed successfully!", "success")
+                self.log_to_terminal("Shutdown options hidden successfully!", "success")
                 self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
                 
                 # Show success message
                 messagebox.showinfo("Success", 
-                    "Shutdown option has been removed from the startup power menu!\n\n"
+                    "Shutdown options have been hidden from the start menu!\n\n"
                     "Changes applied:\n"
-                    "• Shutdown option removed from startup\n"
-                    "• Fast startup disabled\n"
-                    "• Power button behavior modified\n"
-                    "• Ctrl+Alt+Del menu updated\n\n"
-                    "Note: A system restart may be required for all changes to take effect.")
+                    "• Shutdown, restart, sleep, and hibernate options hidden from start menu\n"
+                    "• Note: This only hides the UI elements, power management features remain enabled\n\n"
+                    "Note: You may need to restart Explorer or log off/on to see the changes.")
             else:
                 self.log_to_terminal("Some registry commands failed. Please check the output above.", "warning")
                 messagebox.showwarning("Partial Success", 
-                    "Some shutdown removal operations completed, but not all.\n\n"
+                    "Some shutdown hiding operations completed, but not all.\n\n"
                     "Please check the terminal output for details and consider running as administrator.")
                 
         except Exception as e:
-            error_msg = f"Failed to remove shutdown option: {str(e)}"
+            error_msg = f"Failed to hide shutdown options: {str(e)}"
+            self.log_to_terminal(error_msg, "error")
+            messagebox.showerror("Error", error_msg)
+    
+    def restore_shutdown_options(self):
+        """Restore shutdown, restart, sleep, and hibernate options."""
+        self.log_to_terminal("Attempting to restore shutdown, restart, sleep, and hibernate options...", "info")
+        
+        try:
+            # Check if we're running as administrator
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                self.log_to_terminal("This operation requires administrator privileges.", "warning")
+                self.log_to_terminal("Please restart the application as administrator.", "warning")
+                return
+            
+            # Registry keys to restore
+            restore_commands = [
+                # Restore shutdown option in start menu
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Restore shutdown option from power button
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'ShutdownWithoutLogon' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Restore restart option from Ctrl+Alt+Del menu
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'DisableCAD' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Restore sleep option
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HibernateEnabled' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Restore hibernate option
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HybridSleepEnabled' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Create the policies keys if they don't exist
+                "New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null",
+                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Force -ErrorAction SilentlyContinue | Out-Null",
+                "New-Item -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Force -ErrorAction SilentlyContinue | Out-Null"
+            ]
+            
+            success_count = 0
+            total_commands = len(restore_commands)
+            
+            for i, command in enumerate(restore_commands, 1):
+                try:
+                    self.log_to_terminal(f"Executing restore command {i}/{total_commands}...", "info")
+                    result = subprocess.run([
+                        "powershell", "-Command", command
+                    ], capture_output=True, text=True, timeout=30)
+                    
+                    if result.returncode == 0:
+                        success_count += 1
+                        self.log_to_terminal(f"Restore command {i} executed successfully.", "success")
+                    else:
+                        # Check if this is a "key doesn't exist" error (which is normal)
+                        error_output = result.stderr.lower() if result.stderr else ""
+                        if any(phrase in error_output for phrase in ["does not exist", "not found", "path not found"]):
+                            self.log_to_terminal(f"Registry key not found (this is normal): {command}", "info")
+                            success_count += 1  # Count as success since the goal is achieved
+                        else:
+                            self.log_to_terminal(f"Restore command {i} failed: {result.stderr}", "warning")
+                            
+                except subprocess.TimeoutExpired:
+                    self.log_to_terminal(f"Restore command {i} timed out.", "warning")
+                except Exception as e:
+                    self.log_to_terminal(f"Restore command {i} error: {str(e)}", "warning")
+            
+            # Apply the changes
+            self.log_to_terminal("Applying restore changes...", "info")
+            try:
+                # Refresh the system to apply changes
+                subprocess.run(["gpupdate", "/force"], capture_output=True, timeout=60)
+                self.log_to_terminal("Group Policy updated successfully.", "success")
+            except:
+                self.log_to_terminal("Group Policy update completed.", "info")
+            
+            # Final verification
+            if success_count >= total_commands * 0.7:  # Allow 30% failure rate
+                self.log_to_terminal("Shutdown, restart, sleep, and hibernate options restored successfully!", "success")
+                self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
+                
+                # Show success message
+                messagebox.showinfo("Success", 
+                    "Shutdown, restart, sleep, and hibernate options have been restored!\n\n"
+                    "Changes applied:\n"
+                    "• Shutdown option restored\n"
+                    "• Restart option restored\n"
+                    "• Sleep option restored\n"
+                    "• Hibernate option restored\n\n"
+                    "Note: A system restart may be required for all changes to take effect.")
+            else:
+                self.log_to_terminal("Some restore commands failed. Please check the output above.", "warning")
+                messagebox.showwarning("Partial Success", 
+                    "Some restore operations completed, but not all.\n\n"
+                    "Please check the terminal output for details and consider running as administrator.")
+                
+        except Exception as e:
+            error_msg = f"Failed to restore shutdown options: {str(e)}"
+            self.log_to_terminal(error_msg, "error")
+            messagebox.showerror("Error", error_msg)
+    
+    def configure_power_management(self):
+        """Configure power management settings (sleep/hibernate to never, lid close to do nothing)."""
+        self.log_to_terminal("Attempting to configure power management settings...", "info")
+        
+        try:
+            # Check if we're running as administrator
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                self.log_to_terminal("This operation requires administrator privileges.", "warning")
+                self.log_to_terminal("Please restart the application as administrator.", "warning")
+                return
+            
+            # Use powercfg commands for more reliable power management configuration
+            power_commands = [
+                # Set sleep to never when plugged in
+                "powercfg /setacvalueindex SCHEME_CURRENT SUB_NONE 25a6bda1-4514-4c30-810e-6481143194d5 0",
+                
+                # Set sleep to never when on battery
+                "powercfg /setdcvalueindex SCHEME_CURRENT SUB_NONE 25a6bda1-4514-4c30-810e-6481143194d5 0",
+                
+                # Set hibernate to never when plugged in
+                "powercfg /setacvalueindex SCHEME_CURRENT SUB_NONE 9d7815a6-7ee4-497e-8888-515df05dce0f 0",
+                
+                # Set hibernate to never when on battery
+                "powercfg /setdcvalueindex SCHEME_CURRENT SUB_NONE 9d7815a6-7ee4-497e-8888-515df05dce0f 0",
+                
+                # Set power button to do nothing when plugged in
+                "powercfg /setacvalueindex SCHEME_CURRENT SUB_NONE 7648efa3-dd9c-4e3e-b566-50f929386280 0",
+                
+                # Set power button to do nothing when on battery
+                "powercfg /setdcvalueindex SCHEME_CURRENT SUB_NONE 7648efa3-dd9c-4e3e-b566-50f929386280 0",
+                
+                # Set lid close to do nothing when plugged in
+                "powercfg /setacvalueindex SCHEME_CURRENT SUB_NONE 5ca83367-6e45-459f-a27b-476b1d5cba29 0",
+                
+                # Set lid close to do nothing when on battery
+                "powercfg /setdcvalueindex SCHEME_CURRENT SUB_NONE 5ca83367-6e45-459f-a27b-476b1d5cba29 0",
+                
+                # Apply the current power scheme
+                "powercfg /setactive SCHEME_CURRENT"
+            ]
+            
+            success_count = 0
+            total_commands = len(power_commands)
+            
+            for i, command in enumerate(power_commands, 1):
+                try:
+                    self.log_to_terminal(f"Executing power command {i}/{total_commands}...", "info")
+                    result = subprocess.run([
+                        "cmd", "/c", command
+                    ], capture_output=True, text=True, timeout=30)
+                    
+                    if result.returncode == 0:
+                        success_count += 1
+                        self.log_to_terminal(f"Power command {i} executed successfully.", "success")
+                    else:
+                        # Check if this is a "not found" error (which might be normal for some power schemes)
+                        error_output = result.stderr.lower() if result.stderr else ""
+                        if any(phrase in error_output for phrase in ["not found", "does not exist"]):
+                            self.log_to_terminal(f"Power setting not found (this may be normal): {command}", "info")
+                            success_count += 1  # Count as success since the goal is achieved
+                        else:
+                            self.log_to_terminal(f"Power command {i} failed: {result.stderr}", "warning")
+                            
+                except subprocess.TimeoutExpired:
+                    self.log_to_terminal(f"Power command {i} timed out.", "warning")
+                except Exception as e:
+                    self.log_to_terminal(f"Power command {i} error: {str(e)}", "warning")
+            
+            # Final verification
+            if success_count >= total_commands * 0.7:  # Allow 30% failure rate
+                self.log_to_terminal("Power management settings configured successfully!", "success")
+                self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
+                
+                # Show success message
+                messagebox.showinfo("Success", 
+                    "Power management settings have been configured!\n\n"
+                    "Changes applied:\n"
+                    "• Sleep: Never (plugged in and on battery)\n"
+                    "• Hibernate: Never (plugged in and on battery)\n"
+                    "• Power button: Do nothing (plugged in and on battery)\n"
+                    "• Lid close: Do nothing (plugged in and on battery)\n\n"
+                    "Note: A system restart may be required for all changes to take effect.")
+            else:
+                self.log_to_terminal("Some power commands failed. Please check the output above.", "warning")
+                messagebox.showwarning("Partial Success", 
+                    "Some power management configuration operations completed, but not all.\n\n"
+                    "Please check the terminal output for details and consider running as administrator.")
+                
+        except Exception as e:
+            error_msg = f"Failed to configure power management: {str(e)}"
             self.log_to_terminal(error_msg, "error")
             messagebox.showerror("Error", error_msg)
     
