@@ -1020,20 +1020,20 @@ class InvokeX:
             # Note: We're NOT setting NoClose=1 to avoid breaking right-click menus
             # Instead, we'll use more targeted approaches
             registry_commands = [
-                # Create the policies key first
-                "New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null",
+                # Create the policies key first with proper error handling
+                "if (!(Test-Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer')) { New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force | Out-Null }",
                 
-                # Hide shutdown from power button (but keep restart)
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -Value 1 -Type DWord -Force",
+                # Hide shutdown from power button (but keep restart) - use reg add for better compatibility
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoShutdown /t REG_DWORD /d 1 /f",
                 
-                # Hide logoff option (optional, can be removed if you want to keep it)
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 1 -Type DWord -Force",
+                # Hide logoff option 
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoLogoff /t REG_DWORD /d 1 /f",
                 
-                # Additional: Hide sleep and hibernate from start menu (Windows 10/11 specific)
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoSleep' -Value 1 -Type DWord -Force",
+                # Hide sleep and hibernate from start menu
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoSleep /t REG_DWORD /d 1 /f",
                 
-                # Additional: Hide hibernate from start menu
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoHibernate' -Value 1 -Type DWord -Force"
+                # Hide hibernate from start menu
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoHibernate /t REG_DWORD /d 1 /f"
             ]
             
             success_count = 0
@@ -1044,9 +1044,16 @@ class InvokeX:
                     self.log_to_terminal(f"Executing registry command {i}/{total_commands}: {command}", "info")
                     
                     # Execute the command and capture both output and errors
-                    result = subprocess.run([
-                        "powershell", "-ExecutionPolicy", "Bypass", "-Command", command
-                    ], capture_output=True, text=True, timeout=30)
+                    if command.startswith("reg add"):
+                        # Use cmd for reg commands
+                        result = subprocess.run([
+                            "cmd", "/c", command
+                        ], capture_output=True, text=True, timeout=30)
+                    else:
+                        # Use PowerShell for PowerShell commands
+                        result = subprocess.run([
+                            "powershell", "-ExecutionPolicy", "Bypass", "-Command", command
+                        ], capture_output=True, text=True, timeout=30)
                     
                     # Log the full result for debugging
                     self.log_to_terminal(f"Command {i} return code: {result.returncode}", "info")
@@ -1464,8 +1471,13 @@ class InvokeX:
             self.log_to_terminal(f"Installing {app_name} with elevated privileges...", "INFO")
             
             try:
-                # Use Start-Process to run with elevated privileges
-                install_cmd = f'Start-Process -FilePath "{filename}" -Verb RunAs -Wait'
+                # Use Start-Process to run with elevated privileges and silent install for Ninite
+                if "ninite" in app_name.lower():
+                    # Ninite works better with silent mode
+                    install_cmd = f'Start-Process -FilePath "{filename}" -ArgumentList "/silent" -Verb RunAs -Wait'
+                else:
+                    install_cmd = f'Start-Process -FilePath "{filename}" -Verb RunAs -Wait'
+                    
                 result = subprocess.run([
                     "powershell", "-ExecutionPolicy", "Bypass", "-Command", install_cmd
                 ], capture_output=True, text=True, timeout=300)
@@ -1556,16 +1568,22 @@ class InvokeX:
             
             self.log_to_terminal(f"Chrome found at: {chrome_path}", "success")
             
-            # Set Chrome as default browser using PowerShell
+            # Set Chrome as default browser using multiple methods
             set_default_commands = [
-                # Set Chrome as default for HTTP
-                f'Set-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice" -Name "ProgId" -Value "ChromeHTML" -Force',
+                # Method 1: Use reg add for better compatibility
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice' /v ProgId /d ChromeHTML /f",
                 
-                # Set Chrome as default for HTTPS
-                f'Set-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\https\\UserChoice" -Name "ProgId" -Value "ChromeHTML" -Force',
+                # Method 2: Set HTTPS association
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\https\\UserChoice' /v ProgId /d ChromeHTML /f",
                 
-                # Set Chrome as default for FTP
-                f'Set-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\ftp\\UserChoice" -Name "ProgId" -Value "ChromeHTML" -Force'
+                # Method 3: Set default browser in Classes
+                "reg add 'HKCU\\Software\\Classes\\.htm' /ve /d ChromeHTML /f",
+                
+                # Method 4: Set HTML file association
+                "reg add 'HKCU\\Software\\Classes\\.html' /ve /d ChromeHTML /f",
+                
+                # Method 5: Set default web browser
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\MimeAssociations\\text/html\\UserChoice' /v ProgId /d ChromeHTML /f"
             ]
             
             success_count = 0
@@ -1575,7 +1593,7 @@ class InvokeX:
                 try:
                     self.log_to_terminal(f"Executing command {i}/{total_commands}...", "info")
                     result = subprocess.run([
-                        "powershell", "-ExecutionPolicy", "Bypass", "-Command", command
+                        "cmd", "/c", command
                     ], capture_output=True, text=True, timeout=30)
                     
                     if result.returncode == 0:
