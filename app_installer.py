@@ -19,6 +19,20 @@ import os
 import sys
 import logging
 from datetime import datetime
+import ctypes
+
+# Hide console window when running
+def hide_console():
+    """Hide the console window for a cleaner user experience."""
+    try:
+        # Get the console window handle
+        console_window = ctypes.windll.kernel32.GetConsoleWindow()
+        if console_window != 0:
+            # Hide the console window
+            ctypes.windll.user32.ShowWindow(console_window, 0)
+    except Exception:
+        # If hiding fails, continue anyway
+        pass
 
 class InvokeX:
     """
@@ -39,6 +53,9 @@ class InvokeX:
         self.root.title("InvokeX - Application & Tweak Installer")
         self.root.geometry("1000x750")
         self.root.configure(bg='#f8f9fa')
+        
+        # Hide console window for cleaner experience
+        hide_console()
         
         # Set window icon if available
         self.set_window_icon()
@@ -1712,7 +1729,7 @@ class InvokeX:
                 if result5.returncode == 0:
                     self.log_to_terminal("Successfully hid logoff option", "success")
                     success_count += 1
-                    else:
+                else:
                     self.log_to_terminal(f"Hide logoff failed: {result5.stderr}", "warning")
             except Exception as e:
                 self.log_to_terminal(f"Could not hide logoff: {str(e)}", "warning")
@@ -1726,7 +1743,7 @@ class InvokeX:
                     success_count += 1
                 else:
                     self.log_to_terminal(f"Hide power options failed: {result6.stderr}", "warning")
-                except Exception as e:
+            except Exception as e:
                 self.log_to_terminal(f"Could not hide power options: {str(e)}", "warning")
             
             # Force Group Policy update and restart Explorer
@@ -1830,8 +1847,8 @@ class InvokeX:
                 result4 = subprocess.run(reg_cmd4, shell=True, capture_output=True, timeout=30)
                 if result4.returncode == 0:
                     self.log_to_terminal("Successfully removed system shutdown disable", "success")
-                        success_count += 1
-                    else:
+                    success_count += 1
+                else:
                     self.log_to_terminal("System shutdown disable not found (already removed)", "info")
                     success_count += 1  # Count as success since goal is achieved
             except Exception as e:
@@ -1844,7 +1861,7 @@ class InvokeX:
                 if result5.returncode == 0:
                     self.log_to_terminal("Successfully restored logoff option", "success")
                     success_count += 1
-                        else:
+                else:
                     self.log_to_terminal("Logoff policy not found (already removed)", "info")
                     success_count += 1  # Count as success since goal is achieved
             except Exception as e:
@@ -1860,7 +1877,7 @@ class InvokeX:
                 else:
                     self.log_to_terminal("Power options policy not found (already removed)", "info")
                     success_count += 1  # Count as success since goal is achieved
-                except Exception as e:
+            except Exception as e:
                 self.log_to_terminal(f"Could not restore power options: {str(e)}", "warning")
             
             # Force Group Policy update and restart Explorer
@@ -2150,25 +2167,26 @@ class InvokeX:
                 self.log_to_terminal("Retrieving power logs...", "INFO")
                 result = subprocess.run(['powershell', '-Command', 'get-eventlog -logname Application -source PowerEventProvider'], 
                                       capture_output=True, text=True, timeout=30)
-                    
-                    text_widget.delete('1.0', tk.END)
-                    
+                
+                text_widget.delete('1.0', tk.END)
+                
                 if result.returncode == 0:
-                        if result.stdout.strip():
-                    text_widget.insert('1.0', result.stdout)
-                    self.log_to_terminal("Power logs retrieved successfully!", "SUCCESS")
-                else:
-                            text_widget.insert('1.0', "No PowerEventProvider logs found.\n\nThis could mean:\n• PowerEventProvider is not installed\n• No power events have been logged yet\n• The service is not running")
+                    if result.stdout.strip():
+                        text_widget.insert('1.0', result.stdout)
+                        self.log_to_terminal("Power logs retrieved successfully!", "SUCCESS")
                     else:
-                        error_text = f"Error retrieving logs:\n{result.stderr}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check if the service is running"
-                    text_widget.insert('1.0', error_text)
+                        text_widget.insert('1.0', "No PowerEventProvider logs found.\n\nThis could mean:\n• PowerEventProvider is not installed\n• No power events have been logged yet\n• The service is not running")
                         self.log_to_terminal("PowerEventProvider logs not found", "WARNING")
+                else:
+                    error_text = f"Error retrieving logs:\n{result.stderr}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check if the service is running"
+                    text_widget.insert('1.0', error_text)
+                    self.log_to_terminal("Error retrieving power logs", "ERROR")
                         
             except Exception as e:
-                    text_widget.delete('1.0', tk.END)
-                    error_text = f"Error retrieving logs: {str(e)}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check your PowerShell execution policy"
+                text_widget.delete('1.0', tk.END)
+                error_text = f"Error retrieving logs: {str(e)}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check your PowerShell execution policy"
                 text_widget.insert('1.0', error_text)
-                    self.log_to_terminal(f"Error retrieving power logs: {str(e)}", "ERROR")
+                self.log_to_terminal(f"Error retrieving power logs: {str(e)}", "ERROR")
             
             text_widget.config(state='disabled')
             
