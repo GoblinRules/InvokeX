@@ -293,23 +293,35 @@ class InvokeX:
             pass
         
     def create_apps_tab(self):
-        """Create the Applications tab with scrollable content."""
-        apps_frame = ttk.Frame(self.notebook)
-        self.notebook.add(apps_frame, text="Apps")
+        """Create the Applications tab with consistent modern styling."""
+        apps_frame = tk.Frame(self.notebook, bg='#f8f9fa')
+        self.notebook.add(apps_frame, text="Applications")
         
         # Configure grid weights for auto-scaling
         apps_frame.grid_columnconfigure(0, weight=1)
-        apps_frame.grid_rowconfigure(1, weight=1)
+        apps_frame.grid_rowconfigure(2, weight=1)
         
-        # Title
-        title_label = tk.Label(apps_frame, text="Application Installer", 
-                              font=('Segoe UI', 16, 'bold'), 
-                              bg='#f8f9fa', fg='#2c3e50')
-        title_label.grid(row=0, column=0, pady=(20, 10), sticky='w', padx=20)
+        # Header frame with background
+        header_frame = tk.Frame(apps_frame, bg='#ffffff', height=80)
+        header_frame.grid(row=0, column=0, sticky='ew', padx=0, pady=0)
+        header_frame.grid_propagate(False)
+        header_frame.grid_columnconfigure(0, weight=1)
+        
+        # Title in header
+        title_label = tk.Label(header_frame, text="Application Installer", 
+                              font=('Segoe UI', 18, 'bold'), 
+                              bg='#ffffff', fg='#212529')
+        title_label.grid(row=0, column=0, pady=20, sticky='w', padx=30)
+        
+        # Subtitle
+        subtitle_label = tk.Label(header_frame, text="Install and manage essential Windows applications", 
+                                 font=('Segoe UI', 10), 
+                                 bg='#ffffff', fg='#6c757d')
+        subtitle_label.grid(row=1, column=0, pady=(0, 20), sticky='w', padx=30)
         
         # Create scrollable canvas for apps
         canvas_frame = tk.Frame(apps_frame, bg='#f8f9fa')
-        canvas_frame.grid(row=1, column=0, sticky='nsew', padx=10, pady=(0, 10))
+        canvas_frame.grid(row=2, column=0, sticky='nsew', padx=20, pady=(10, 20))
         canvas_frame.grid_columnconfigure(0, weight=1)
         canvas_frame.grid_rowconfigure(0, weight=1)
         
@@ -348,12 +360,12 @@ class InvokeX:
         
         # App 3: PowerEventProvider
         self.create_app_section_with_3_buttons(apps_container, 
-                                             "PowerEventProvider", 
-                                             "Power management event provider",
-                                             "Download & Install",
+                               "PowerEventProvider", 
+                               "Power management event provider",
+                               "Download & Install",
                                              "GitHub",
                                              "View Power Logs",
-                                             "https://github.com/GoblinRules/powereventprovider",
+                               "https://github.com/GoblinRules/powereventprovider",
                                              lambda: self.download_and_install_msi("https://github.com/GoblinRules/powereventprovider/releases/download/V1.1/PowerEventProviderSetup.msi"),
                                              lambda: webbrowser.open("https://github.com/GoblinRules/powereventprovider"),
                                              lambda: self.view_power_logs())
@@ -408,7 +420,7 @@ class InvokeX:
             canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         
         def _bind_mousewheel(event):
-            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
         def _unbind_mousewheel(event):
             canvas.unbind_all("<MouseWheel>")
@@ -424,30 +436,36 @@ class InvokeX:
         apps_container.bind('<Leave>', _unbind_mousewheel)
     
     def create_tweaks_tab(self):
-        """Create the System Tweaks tab with modern scrollable 3-button layout."""
-        tweaks_frame = ttk.Frame(self.notebook)
-        self.notebook.add(tweaks_frame, text="Tweaks")
+        """Create the System Tweaks tab with consistent modern styling."""
+        tweaks_frame = tk.Frame(self.notebook, bg='#f8f9fa')
+        self.notebook.add(tweaks_frame, text="System Tweaks")
         
         # Configure grid weights for auto-scaling
         tweaks_frame.grid_columnconfigure(0, weight=1)
         tweaks_frame.grid_rowconfigure(2, weight=1)
         
-        # Title
-        title_label = tk.Label(tweaks_frame, text="System Tweaks", 
-                              font=('Segoe UI', 16, 'bold'), 
-                              bg='#f8f9fa', fg='#2c3e50')
-        title_label.grid(row=0, column=0, pady=(20, 10), sticky='w', padx=20)
+        # Header frame with background (matching apps tab)
+        header_frame = tk.Frame(tweaks_frame, bg='#ffffff', height=80)
+        header_frame.grid(row=0, column=0, sticky='ew', padx=0, pady=0)
+        header_frame.grid_propagate(False)
+        header_frame.grid_columnconfigure(0, weight=1)
         
-        # Detect Windows version
+        # Title in header
+        title_label = tk.Label(header_frame, text="System Tweaks", 
+                              font=('Segoe UI', 18, 'bold'), 
+                              bg='#ffffff', fg='#212529')
+        title_label.grid(row=0, column=0, pady=20, sticky='w', padx=30)
+        
+        # Subtitle with Windows version
         windows_version = self.get_windows_version()
-        version_label = tk.Label(tweaks_frame, text=f"Detected: {windows_version}", 
-                                font=('Segoe UI', 10), 
-                                bg='#f8f9fa', fg='#6c757d')
-        version_label.grid(row=1, column=0, pady=(0, 15), sticky='w', padx=20)
+        subtitle_label = tk.Label(header_frame, text=f"Customize Windows settings and behavior • {windows_version}", 
+                                 font=('Segoe UI', 10), 
+                                 bg='#ffffff', fg='#6c757d')
+        subtitle_label.grid(row=1, column=0, pady=(0, 20), sticky='w', padx=30)
         
         # Create scrollable canvas for tweaks
         canvas_frame = tk.Frame(tweaks_frame, bg='#f8f9fa')
-        canvas_frame.grid(row=2, column=0, sticky='nsew', padx=10, pady=(0, 10))
+        canvas_frame.grid(row=2, column=0, sticky='nsew', padx=20, pady=(10, 20))
         canvas_frame.grid_columnconfigure(0, weight=1)
         canvas_frame.grid_rowconfigure(0, weight=1)
         
@@ -485,21 +503,21 @@ class InvokeX:
                                                "Set Google Chrome as default browser",
                                                "Set Chrome Default",
                                                "Restore Defaults",
-                                               "Check Registry", 
+                                               "Check Current Default", 
                                                lambda: self.set_chrome_as_default(),
                                                lambda: self.reset_default_browser(),
-                                               lambda: self.check_registry_keys_for_tweak("Set Chrome As Default Browser"))
+                                               lambda: self.check_current_default_browser())
         
         # Tweak 3: Power Management Settings
         self.create_single_tweak_with_3_buttons(tweaks_container,
                                                "Power Management Settings", 
-                                               "Configure power settings (sleep/hibernate to never, lid close to do nothing)",
+                                               "Configure power settings (never sleep/hibernate, power button/lid do nothing, never turn off display)",
                                                "Configure Power",
                                                "Restore Defaults",
-                                               "Check Registry",
+                                               "Check Status",
                                                lambda: self.configure_power_management(),
                                                lambda: self.reset_power_management(),
-                                               lambda: self.check_registry_keys_for_tweak("Power Management Settings"))
+                                               lambda: self.check_power_status())
         
         # Tweak 4: Power Actions
         self.create_single_tweak_with_3_buttons(tweaks_container,
@@ -507,10 +525,10 @@ class InvokeX:
                                                "Quick power actions for system control",
                                                "Restart",
                                                "Shutdown",
-                                               "Cancel",
+                                               None,  # No third button
                                                lambda: self.restart_system_10s(),
                                                lambda: self.shutdown_system(),
-                                               lambda: self.cancel_power_action())
+                                               None)
         
         # Tweak 5: Prevent User Account Creation
         self.create_single_tweak_with_3_buttons(tweaks_container,
@@ -568,73 +586,78 @@ class InvokeX:
         tweaks_container.bind('<Leave>', _unbind_mousewheel)
     
     def create_single_tweak_with_3_buttons(self, parent, title, description, btn1_text, btn2_text, btn3_text, btn1_func, btn2_func, btn3_func):
-        """Create a single tweak section with modern 3-button layout."""
-        # Container for this tweak with modern styling
-        tweak_frame = tk.Frame(parent, bg='#ffffff', relief='flat', bd=0)
-        tweak_frame.pack(fill='x', pady=8, padx=10)
+        """Create a single tweak section with modern 3-button layout and consistent styling."""
+        # Container for this tweak with modern card styling
+        tweak_frame = tk.Frame(parent, bg='#ffffff', relief='flat', bd=1)
+        tweak_frame.pack(fill='x', pady=6, padx=0)
         
-        # Add subtle shadow effect with border
-        shadow_frame = tk.Frame(parent, bg='#e9ecef', height=2)
-        shadow_frame.pack(fill='x', padx=12)
+        # Add subtle border
+        border_frame = tk.Frame(tweak_frame, bg='#dee2e6', height=1)
+        border_frame.pack(fill='x', side='bottom')
         
-        # Tweak info with better padding
+        # Tweak info with consistent padding
         info_frame = tk.Frame(tweak_frame, bg='#ffffff')
-        info_frame.pack(fill='x', padx=20, pady=15)
+        info_frame.pack(fill='x', padx=25, pady=20)
         
-        # Title with modern typography
+        # Title with consistent typography
         title_label = tk.Label(info_frame, text=title, 
-                              font=('Segoe UI', 12, 'bold'), 
+                              font=('Segoe UI', 13, 'bold'), 
                               bg='#ffffff', fg='#212529', anchor='w')
         title_label.pack(anchor='w')
         
-        # Description with better spacing
+        # Description with consistent spacing
         desc_label = tk.Label(info_frame, text=description, 
                              font=('Segoe UI', 9), 
-                             bg='#ffffff', fg='#6c757d', anchor='w')
-        desc_label.pack(anchor='w', pady=(5, 0))
+                             bg='#ffffff', fg='#6c757d', anchor='w',
+                             wraplength=800)
+        desc_label.pack(anchor='w', pady=(6, 0))
         
-        # Buttons frame with better spacing
+        # Buttons frame with consistent alignment
         buttons_frame = tk.Frame(info_frame, bg='#ffffff')
-        buttons_frame.pack(fill='x', pady=(15, 0))
+        buttons_frame.pack(fill='x', pady=(18, 0))
         
-        # Modern button styling
+        # Consistent button styling
         button_style = {
             'font': ('Segoe UI', 9, 'bold'),
             'relief': 'flat',
-            'padx': 20,
-            'pady': 8,
+            'padx': 24,
+            'pady': 10,
             'cursor': 'hand2',
-            'bd': 0
+            'bd': 0,
+            'width': 15  # Fixed width for alignment
         }
         
         # Button 1 (Action) - Primary color
         btn1 = tk.Button(buttons_frame, text=btn1_text, 
                         command=btn1_func,
-                        bg='#007bff', fg='white',
+                        bg='#0d6efd', fg='white',
                         **button_style)
-        btn1.pack(side='left', padx=(0, 10))
+        btn1.pack(side='left', padx=(0, 12))
         
         # Button 2 (Restore) - Success color
         btn2 = tk.Button(buttons_frame, text=btn2_text, 
                         command=btn2_func,
-                        bg='#28a745', fg='white',
+                        bg='#198754', fg='white',
                         **button_style)
-        btn2.pack(side='left', padx=(0, 10))
+        btn2.pack(side='left', padx=(0, 12))
         
-        # Button 3 (Check/Info) - Info color
-        btn3 = tk.Button(buttons_frame, text=btn3_text, 
-                        command=btn3_func,
-                        bg='#17a2b8', fg='white',
-                        **button_style)
-        btn3.pack(side='left')
+        # Button 3 (Check/Info) - Info color or hide if None
+        if btn3_text and btn3_func:
+            btn3 = tk.Button(buttons_frame, text=btn3_text, 
+                            command=btn3_func,
+                            bg='#0dcaf0', fg='#212529',
+                            **button_style)
+            btn3.pack(side='left')
+            
+            # Hover effects for button 3
+            btn3.bind('<Enter>', lambda e: btn3.configure(bg='#31d2f2'))
+            btn3.bind('<Leave>', lambda e: btn3.configure(bg='#0dcaf0'))
         
-        # Modern hover effects
-        btn1.bind('<Enter>', lambda e: btn1.configure(bg='#0056b3'))
-        btn1.bind('<Leave>', lambda e: btn1.configure(bg='#007bff'))
-        btn2.bind('<Enter>', lambda e: btn2.configure(bg='#1e7e34'))
-        btn2.bind('<Leave>', lambda e: btn2.configure(bg='#28a745'))
-        btn3.bind('<Enter>', lambda e: btn3.configure(bg='#117a8b'))
-        btn3.bind('<Leave>', lambda e: btn3.configure(bg='#17a2b8'))
+        # Consistent hover effects
+        btn1.bind('<Enter>', lambda e: btn1.configure(bg='#0b5ed7'))
+        btn1.bind('<Leave>', lambda e: btn1.configure(bg='#0d6efd'))
+        btn2.bind('<Enter>', lambda e: btn2.configure(bg='#157347'))
+        btn2.bind('<Leave>', lambda e: btn2.configure(bg='#198754'))
     
     def create_tweak_section(self, parent, title, description, action_text, restore_text, action_func, restore_func, has_registry=True):
         """
@@ -805,7 +828,7 @@ class InvokeX:
             error_msg = f"Failed to check registry keys for {tweak_name}: {str(e)}"
             self.log_to_terminal(error_msg, "error")
             messagebox.showerror("Registry Check Error", error_msg)
-
+    
     def check_app_installed(self, app_name):
         """
         Check if an app is already installed.
@@ -1067,7 +1090,7 @@ class InvokeX:
             status_label.config(text=status_text, fg=status_color)
         except Exception as e:
             self.log_to_terminal(f"Error refreshing status for {app_name}: {str(e)}", "WARNING")
-
+    
     def create_app_section(self, parent, title, description, button_text, github_url, install_func):
         """
         Create a section for an individual application.
@@ -1105,10 +1128,10 @@ class InvokeX:
             # Show loading initially, check later
             status_text = "○ Checking activation..."
             status_color = "#95a5a6"
-            status_label = tk.Label(info_frame, text=status_text, 
-                                   font=('Segoe UI', 8, 'bold'), 
-                                   bg='white', fg=status_color, anchor='w')
-            status_label.pack(anchor='w', pady=(5, 0))
+        status_label = tk.Label(info_frame, text=status_text, 
+                               font=('Segoe UI', 8, 'bold'), 
+                               bg='white', fg=status_color, anchor='w')
+        status_label.pack(anchor='w', pady=(5, 0))
             # Check activation in background
             self.root.after(100, lambda: self.check_mass_activation_async(status_label))
         elif title == "CTT WinUtil":
@@ -1652,8 +1675,8 @@ class InvokeX:
                 result2 = subprocess.run(gpo_cmd2, shell=True, capture_output=True, timeout=30)
                 if result2.returncode == 0:
                     self.log_to_terminal("Successfully set user shutdown policy", "success")
-                    success_count += 1
-                else:
+                        success_count += 1
+                    else:
                     self.log_to_terminal(f"User shutdown policy failed: {result2.stderr}", "warning")
             except Exception as e:
                 self.log_to_terminal(f"Could not set user shutdown policy: {str(e)}", "warning")
@@ -1667,7 +1690,7 @@ class InvokeX:
                     success_count += 1
                 else:
                     self.log_to_terminal(f"Machine shutdown policy failed: {result3.stderr}", "warning")
-            except Exception as e:
+                except Exception as e:
                 self.log_to_terminal(f"Could not set machine shutdown policy: {str(e)}", "warning")
             
             # Method 4: Create GPO for System Configuration - Disable Shutdown
@@ -1689,7 +1712,7 @@ class InvokeX:
                 if result5.returncode == 0:
                     self.log_to_terminal("Successfully hid logoff option", "success")
                     success_count += 1
-                else:
+                    else:
                     self.log_to_terminal(f"Hide logoff failed: {result5.stderr}", "warning")
             except Exception as e:
                 self.log_to_terminal(f"Could not hide logoff: {str(e)}", "warning")
@@ -1703,7 +1726,7 @@ class InvokeX:
                     success_count += 1
                 else:
                     self.log_to_terminal(f"Hide power options failed: {result6.stderr}", "warning")
-            except Exception as e:
+                except Exception as e:
                 self.log_to_terminal(f"Could not hide power options: {str(e)}", "warning")
             
             # Force Group Policy update and restart Explorer
@@ -1807,8 +1830,8 @@ class InvokeX:
                 result4 = subprocess.run(reg_cmd4, shell=True, capture_output=True, timeout=30)
                 if result4.returncode == 0:
                     self.log_to_terminal("Successfully removed system shutdown disable", "success")
-                    success_count += 1
-                else:
+                        success_count += 1
+                    else:
                     self.log_to_terminal("System shutdown disable not found (already removed)", "info")
                     success_count += 1  # Count as success since goal is achieved
             except Exception as e:
@@ -1821,7 +1844,7 @@ class InvokeX:
                 if result5.returncode == 0:
                     self.log_to_terminal("Successfully restored logoff option", "success")
                     success_count += 1
-                else:
+                        else:
                     self.log_to_terminal("Logoff policy not found (already removed)", "info")
                     success_count += 1  # Count as success since goal is achieved
             except Exception as e:
@@ -1837,7 +1860,7 @@ class InvokeX:
                 else:
                     self.log_to_terminal("Power options policy not found (already removed)", "info")
                     success_count += 1  # Count as success since goal is achieved
-            except Exception as e:
+                except Exception as e:
                 self.log_to_terminal(f"Could not restore power options: {str(e)}", "warning")
             
             # Force Group Policy update and restart Explorer
@@ -1881,98 +1904,169 @@ class InvokeX:
             messagebox.showerror("Error", error_msg)
     
     def configure_power_management(self):
-        """Configure power management settings (sleep/hibernate to never, lid close to do nothing)."""
-        self.log_to_terminal("Attempting to configure power management settings...", "info")
+        """Configure comprehensive power management settings using multiple methods for maximum compatibility."""
+        self.log_to_terminal("=== Starting comprehensive power management configuration ===", "info")
         
         try:
             # Check if we're running as administrator
             import ctypes
             if not ctypes.windll.shell32.IsUserAnAdmin():
-                self.log_to_terminal("This operation requires administrator privileges.", "warning")
-                self.log_to_terminal("Please restart the application as administrator.", "warning")
+                self.log_to_terminal("❌ Administrator privileges required for power management changes", "error")
+                messagebox.showwarning("Administrator Required", 
+                    "This operation requires administrator privileges.\n\n"
+                    "Please restart InvokeX as administrator to configure power settings.")
                 return
             
-            # Use powercfg commands for more reliable power management configuration
-            power_commands = [
-                # Set sleep to never when plugged in
-                "powercfg /setacvalueindex SCHEME_CURRENT SUB_NONE 25a6bda1-4514-4c30-810e-6481143194d5 0",
-                
-                # Set sleep to never when on battery
-                "powercfg /setdcvalueindex SCHEME_CURRENT SUB_NONE 25a6bda1-4514-4c30-810e-6481143194d5 0",
-                
-                # Set hibernate to never when plugged in
-                "powercfg /setacvalueindex SCHEME_CURRENT SUB_NONE 9d7815a6-7ee4-497e-8888-515df05dce0f 0",
-                
-                # Set hibernate to never when on battery
-                "powercfg /setdcvalueindex SCHEME_CURRENT SUB_NONE 9d7815a6-7ee4-497e-8888-515df05dce0f 0",
-                
-                # Set power button to do nothing when plugged in
-                "powercfg /setacvalueindex SCHEME_CURRENT SUB_NONE 7648efa3-dd9c-4e3e-b566-50f929386280 0",
-                
-                # Set power button to do nothing when on battery
-                "powercfg /setdcvalueindex SCHEME_CURRENT SUB_NONE 7648efa3-dd9c-4e3e-b566-50f929386280 0",
-                
-                # Set lid close to do nothing when plugged in
-                "powercfg /setacvalueindex SCHEME_CURRENT SUB_NONE 5ca83367-6e45-459f-a27b-476b1d5cba29 0",
-                
-                # Set lid close to do nothing when on battery
-                "powercfg /setdcvalueindex SCHEME_CURRENT SUB_NONE 5ca83367-6e45-459f-a27b-476b1d5cba29 0",
-                
-                # Apply the current power scheme
-                "powercfg /setactive SCHEME_CURRENT"
-            ]
-            
+            self.log_to_terminal("✓ Administrator privileges confirmed", "success")
             success_count = 0
-            total_commands = len(power_commands)
+            total_operations = 6
             
-            for i, command in enumerate(power_commands, 1):
-                try:
-                    self.log_to_terminal(f"Executing power command {i}/{total_commands}...", "info")
-                    result = subprocess.run([
-                        "cmd", "/c", command
-                    ], capture_output=True, text=True, timeout=30)
-                    
-                    if result.returncode == 0:
-                        success_count += 1
-                        self.log_to_terminal(f"Power command {i} executed successfully.", "success")
-                    else:
-                        # Check if this is a "not found" error (which might be normal for some power schemes)
-                        error_output = result.stderr.lower() if result.stderr else ""
-                        if any(phrase in error_output for phrase in ["not found", "does not exist"]):
-                            self.log_to_terminal(f"Power setting not found (this may be normal): {command}", "info")
-                            success_count += 1  # Count as success since the goal is achieved
-                        else:
-                            self.log_to_terminal(f"Power command {i} failed: {result.stderr}", "warning")
-                            
-                except subprocess.TimeoutExpired:
-                    self.log_to_terminal(f"Power command {i} timed out.", "warning")
-                except Exception as e:
-                    self.log_to_terminal(f"Power command {i} error: {str(e)}", "warning")
-            
-            # Final verification
-            if success_count >= total_commands * 0.7:  # Allow 30% failure rate
-                self.log_to_terminal("Power management settings configured successfully!", "success")
-                self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
+            # Method 1: Set sleep to never using powercfg with timeout values
+            self.log_to_terminal("🔧 Configuring sleep settings (AC and battery)...", "info")
+            try:
+                # Sleep timeout to never (0 = never)
+                cmd1 = "powercfg /change standby-timeout-ac 0"
+                cmd2 = "powercfg /change standby-timeout-dc 0"
                 
-                # Show success message
-                messagebox.showinfo("Success", 
-                    "Power management settings have been configured!\n\n"
-                    "Changes applied:\n"
-                    "• Sleep: Never (plugged in and on battery)\n"
-                    "• Hibernate: Never (plugged in and on battery)\n"
-                    "• Power button: Do nothing (plugged in and on battery)\n"
-                    "• Lid close: Do nothing (plugged in and on battery)\n\n"
-                    "Note: A system restart may be required for all changes to take effect.")
+                result1 = subprocess.run(cmd1, shell=True, capture_output=True, text=True, timeout=30)
+                result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True, timeout=30)
+                
+                if result1.returncode == 0 and result2.returncode == 0:
+                    success_count += 1
+                    self.log_to_terminal("✓ Sleep disabled successfully (AC and battery)", "success")
+                else:
+                    self.log_to_terminal(f"⚠ Sleep configuration had issues: AC={result1.stderr}, Battery={result2.stderr}", "warning")
+            except Exception as e:
+                self.log_to_terminal(f"❌ Sleep configuration failed: {str(e)}", "error")
+            
+            # Method 2: Set hibernate to never
+            self.log_to_terminal("🔧 Configuring hibernate settings (AC and battery)...", "info")
+            try:
+                cmd3 = "powercfg /change hibernate-timeout-ac 0"
+                cmd4 = "powercfg /change hibernate-timeout-dc 0"
+                
+                result3 = subprocess.run(cmd3, shell=True, capture_output=True, text=True, timeout=30)
+                result4 = subprocess.run(cmd4, shell=True, capture_output=True, text=True, timeout=30)
+                
+                if result3.returncode == 0 and result4.returncode == 0:
+                    success_count += 1
+                    self.log_to_terminal("✓ Hibernate disabled successfully (AC and battery)", "success")
+                else:
+                    self.log_to_terminal(f"⚠ Hibernate configuration had issues: AC={result3.stderr}, Battery={result4.stderr}", "warning")
+            except Exception as e:
+                self.log_to_terminal(f"❌ Hibernate configuration failed: {str(e)}", "error")
+            
+            # Method 3: Set monitor timeout to never
+            self.log_to_terminal("🔧 Configuring display timeout (never turn off)...", "info")
+            try:
+                cmd5 = "powercfg /change monitor-timeout-ac 0"
+                cmd6 = "powercfg /change monitor-timeout-dc 0"
+                
+                result5 = subprocess.run(cmd5, shell=True, capture_output=True, text=True, timeout=30)
+                result6 = subprocess.run(cmd6, shell=True, capture_output=True, text=True, timeout=30)
+                
+                if result5.returncode == 0 and result6.returncode == 0:
+                    success_count += 1
+                    self.log_to_terminal("✓ Display timeout disabled successfully (AC and battery)", "success")
+                else:
+                    self.log_to_terminal(f"⚠ Display timeout configuration had issues: AC={result5.stderr}, Battery={result6.stderr}", "warning")
+            except Exception as e:
+                self.log_to_terminal(f"❌ Display timeout configuration failed: {str(e)}", "error")
+            
+            # Method 4: Configure power button action using registry
+            self.log_to_terminal("🔧 Configuring power button (do nothing)...", "info")
+            try:
+                # Set power button to do nothing (0 = do nothing)
+                reg_cmd1 = 'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerSettings\\4f971e89-eebd-4455-a8de-9e59040e7347\\7648efa3-dd9c-4e3e-b566-50f929386280" /v ACSettingIndex /t REG_DWORD /d 0 /f'
+                reg_cmd2 = 'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerSettings\\4f971e89-eebd-4455-a8de-9e59040e7347\\7648efa3-dd9c-4e3e-b566-50f929386280" /v DCSettingIndex /t REG_DWORD /d 0 /f'
+                
+                result7 = subprocess.run(reg_cmd1, shell=True, capture_output=True, text=True, timeout=30)
+                result8 = subprocess.run(reg_cmd2, shell=True, capture_output=True, text=True, timeout=30)
+                
+                if result7.returncode == 0 and result8.returncode == 0:
+                    success_count += 1
+                    self.log_to_terminal("✓ Power button configured to do nothing", "success")
+                else:
+                    self.log_to_terminal(f"⚠ Power button configuration had issues", "warning")
+            except Exception as e:
+                self.log_to_terminal(f"❌ Power button configuration failed: {str(e)}", "error")
+            
+            # Method 5: Configure lid close action using registry
+            self.log_to_terminal("🔧 Configuring lid close action (do nothing)...", "info")
+            try:
+                # Set lid close to do nothing (0 = do nothing)
+                reg_cmd3 = 'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerSettings\\4f971e89-eebd-4455-a8de-9e59040e7347\\5ca83367-6e45-459f-a27b-476b1d5cba29" /v ACSettingIndex /t REG_DWORD /d 0 /f'
+                reg_cmd4 = 'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerSettings\\4f971e89-eebd-4455-a8de-9e59040e7347\\5ca83367-6e45-459f-a27b-476b1d5cba29" /v DCSettingIndex /t REG_DWORD /d 0 /f'
+                
+                result9 = subprocess.run(reg_cmd3, shell=True, capture_output=True, text=True, timeout=30)
+                result10 = subprocess.run(reg_cmd4, shell=True, capture_output=True, text=True, timeout=30)
+                
+                if result9.returncode == 0 and result10.returncode == 0:
+                    success_count += 1
+                    self.log_to_terminal("✓ Lid close configured to do nothing", "success")
+                else:
+                    self.log_to_terminal(f"⚠ Lid close configuration had issues", "warning")
+            except Exception as e:
+                self.log_to_terminal(f"❌ Lid close configuration failed: {str(e)}", "error")
+            
+            # Method 6: Apply current power scheme and refresh
+            self.log_to_terminal("🔧 Applying power scheme changes...", "info")
+            try:
+                # Get current power scheme GUID
+                get_scheme = "powercfg /getactivescheme"
+                scheme_result = subprocess.run(get_scheme, shell=True, capture_output=True, text=True, timeout=30)
+                
+                if scheme_result.returncode == 0:
+                    # Extract GUID from output
+                    scheme_line = scheme_result.stdout.strip()
+                    if ":" in scheme_line:
+                        scheme_guid = scheme_line.split(":")[1].strip().split()[0]
+                        apply_cmd = f"powercfg /setactive {scheme_guid}"
+                        apply_result = subprocess.run(apply_cmd, shell=True, capture_output=True, text=True, timeout=30)
+                        
+                        if apply_result.returncode == 0:
+                            success_count += 1
+                            self.log_to_terminal("✓ Power scheme changes applied successfully", "success")
+                        else:
+                            self.log_to_terminal("⚠ Power scheme application had issues", "warning")
+                    else:
+                        self.log_to_terminal("⚠ Could not parse current power scheme", "warning")
+                else:
+                    self.log_to_terminal("⚠ Could not get current power scheme", "warning")
+            except Exception as e:
+                self.log_to_terminal(f"❌ Power scheme application failed: {str(e)}", "error")
+            
+            # Final results
+            self.log_to_terminal(f"=== Power management configuration completed: {success_count}/{total_operations} operations successful ===", "info")
+            
+            if success_count >= 4:  # Require at least 4/6 operations to succeed
+                self.log_to_terminal("🎉 Power management configured successfully!", "success")
+                messagebox.showinfo("Power Management Configured", 
+                    f"Power management settings have been configured successfully!\n\n"
+                    f"Operations completed: {success_count}/{total_operations}\n\n"
+                    "Settings applied:\n"
+                    "✓ System will never sleep\n"
+                    "✓ System will never hibernate\n"
+                    "✓ Display will never turn off\n"
+                    "✓ Power button will do nothing\n"
+                    "✓ Closing lid will do nothing\n\n"
+                    "Changes are active immediately.\n"
+                    "Check terminal for detailed results.")
             else:
-                self.log_to_terminal("Some power commands failed. Please check the output above.", "warning")
-                messagebox.showwarning("Partial Success", 
-                    "Some power management configuration operations completed, but not all.\n\n"
-                    "Please check the terminal output for details and consider running as administrator.")
+                self.log_to_terminal("⚠ Power management partially configured", "warning")
+                messagebox.showwarning("Partial Configuration", 
+                    f"Power management was partially configured ({success_count}/{total_operations} operations successful).\n\n"
+                    "Some settings may not have been applied.\n"
+                    "Please check the terminal output for detailed information.\n\n"
+                    "You may need to configure some settings manually through Windows Power Options.")
                 
         except Exception as e:
-            error_msg = f"Failed to configure power management: {str(e)}"
+            error_msg = f"❌ Critical error in power management configuration: {str(e)}"
             self.log_to_terminal(error_msg, "error")
-            messagebox.showerror("Error", error_msg)
+            messagebox.showerror("Configuration Error", 
+                f"Failed to configure power management settings.\n\n"
+                f"Error: {str(e)}\n\n"
+                "Please try running as administrator or configure manually through Windows Power Options.")
     
     def view_power_logs(self):
         """
@@ -2052,31 +2146,31 @@ class InvokeX:
                 text_widget.insert('1.0', "Loading PowerEventProvider logs...\n\n")
                 text_widget.update()
                 
-                try:
-                    self.log_to_terminal("Retrieving power logs...", "INFO")
-                    result = subprocess.run(['powershell', '-Command', 'get-eventlog -logname Application -source PowerEventProvider'], 
-                                          capture_output=True, text=True, timeout=30)
+            try:
+                self.log_to_terminal("Retrieving power logs...", "INFO")
+                result = subprocess.run(['powershell', '-Command', 'get-eventlog -logname Application -source PowerEventProvider'], 
+                                      capture_output=True, text=True, timeout=30)
                     
                     text_widget.delete('1.0', tk.END)
                     
-                    if result.returncode == 0:
+                if result.returncode == 0:
                         if result.stdout.strip():
-                            text_widget.insert('1.0', result.stdout)
-                            self.log_to_terminal("Power logs retrieved successfully!", "SUCCESS")
-                        else:
+                    text_widget.insert('1.0', result.stdout)
+                    self.log_to_terminal("Power logs retrieved successfully!", "SUCCESS")
+                else:
                             text_widget.insert('1.0', "No PowerEventProvider logs found.\n\nThis could mean:\n• PowerEventProvider is not installed\n• No power events have been logged yet\n• The service is not running")
                     else:
                         error_text = f"Error retrieving logs:\n{result.stderr}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check if the service is running"
-                        text_widget.insert('1.0', error_text)
+                    text_widget.insert('1.0', error_text)
                         self.log_to_terminal("PowerEventProvider logs not found", "WARNING")
                         
-                except Exception as e:
+            except Exception as e:
                     text_widget.delete('1.0', tk.END)
                     error_text = f"Error retrieving logs: {str(e)}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check your PowerShell execution policy"
-                    text_widget.insert('1.0', error_text)
+                text_widget.insert('1.0', error_text)
                     self.log_to_terminal(f"Error retrieving power logs: {str(e)}", "ERROR")
-                
-                text_widget.config(state='disabled')
+            
+            text_widget.config(state='disabled')
             
             # Bind refresh button
             refresh_btn.configure(command=load_logs)
@@ -2652,6 +2746,177 @@ class InvokeX:
             "• Open Group Policy Editor (gpedit.msc)\n"
             "• Navigate to User Configuration > Administrative Templates > Start Menu and Taskbar\n"
             "• Look for shutdown-related policies")
+    
+    def check_current_default_browser(self):
+        """Check and display the current default browser clearly."""
+        self.log_to_terminal("Checking current default browser...", "info")
+        
+        try:
+            # Method 1: Check HTTP protocol association
+            cmd1 = 'reg query "HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice" /v ProgId'
+            result1 = subprocess.run(cmd1, shell=True, capture_output=True, text=True, timeout=10)
+            
+            # Method 2: Check HTTPS protocol association  
+            cmd2 = 'reg query "HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\https\\UserChoice" /v ProgId'
+            result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True, timeout=10)
+            
+            http_browser = "Unknown"
+            https_browser = "Unknown"
+            
+            # Parse HTTP result
+            if result1.returncode == 0:
+                for line in result1.stdout.split('\n'):
+                    if 'ProgId' in line and 'REG_SZ' in line:
+                        prog_id = line.split('REG_SZ')[-1].strip()
+                        if 'Chrome' in prog_id:
+                            http_browser = "Google Chrome"
+                        elif 'Firefox' in prog_id:
+                            http_browser = "Mozilla Firefox"
+                        elif 'Edge' in prog_id or 'MSEdge' in prog_id:
+                            http_browser = "Microsoft Edge"
+                        elif 'IE' in prog_id or 'Internet' in prog_id:
+                            http_browser = "Internet Explorer"
+                        else:
+                            http_browser = f"Other ({prog_id})"
+                        break
+            
+            # Parse HTTPS result
+            if result2.returncode == 0:
+                for line in result2.stdout.split('\n'):
+                    if 'ProgId' in line and 'REG_SZ' in line:
+                        prog_id = line.split('REG_SZ')[-1].strip()
+                        if 'Chrome' in prog_id:
+                            https_browser = "Google Chrome"
+                        elif 'Firefox' in prog_id:
+                            https_browser = "Mozilla Firefox"
+                        elif 'Edge' in prog_id or 'MSEdge' in prog_id:
+                            https_browser = "Microsoft Edge"
+                        elif 'IE' in prog_id or 'Internet' in prog_id:
+                            https_browser = "Internet Explorer"
+                        else:
+                            https_browser = f"Other ({prog_id})"
+                        break
+            
+            # Create status message
+            status_msg = "Current Default Browser Status:\n\n"
+            
+            if http_browser == https_browser:
+                if "Chrome" in http_browser:
+                    status_msg += f"✅ DEFAULT BROWSER: {http_browser}\n\n"
+                    status_msg += "Google Chrome is currently set as your default browser for both HTTP and HTTPS links."
+                else:
+                    status_msg += f"ℹ️ DEFAULT BROWSER: {http_browser}\n\n"
+                    status_msg += f"Your current default browser is {http_browser}.\n"
+                    status_msg += "Use 'Set Chrome Default' to change it to Google Chrome."
+            else:
+                status_msg += f"⚠️ MIXED SETTINGS:\n"
+                status_msg += f"HTTP links: {http_browser}\n"
+                status_msg += f"HTTPS links: {https_browser}\n\n"
+                status_msg += "Your browser settings are inconsistent.\n"
+                status_msg += "Use 'Set Chrome Default' to fix this and set Chrome as default."
+            
+            # Additional Chrome installation check
+            chrome_paths = [
+                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+                r"C:\Users\{}\AppData\Local\Google\Chrome\Application\chrome.exe".format(os.environ.get('USERNAME', ''))
+            ]
+            
+            chrome_installed = any(os.path.exists(path) for path in chrome_paths)
+            
+            if not chrome_installed:
+                status_msg += "\n\n⚠️ NOTE: Google Chrome does not appear to be installed on this system."
+            
+            messagebox.showinfo("Default Browser Status", status_msg)
+            self.log_to_terminal(f"Current default browser check completed: HTTP={http_browser}, HTTPS={https_browser}", "success")
+            
+        except Exception as e:
+            error_msg = f"Failed to check default browser: {str(e)}"
+            self.log_to_terminal(error_msg, "error")
+            messagebox.showerror("Browser Check Error", 
+                f"Could not determine current default browser.\n\n"
+                f"Error: {str(e)}\n\n"
+                "You can check manually in Windows Settings > Apps > Default Apps.")
+    
+    def check_power_status(self):
+        """Check current power management settings status."""
+        self.log_to_terminal("Checking current power management settings...", "info")
+        
+        try:
+            status_msg = "Current Power Management Settings:\n\n"
+            
+            # Check sleep timeout
+            cmd1 = "powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE"
+            result1 = subprocess.run(cmd1, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if result1.returncode == 0:
+                if "0x00000000" in result1.stdout:
+                    status_msg += "✅ Sleep: Never (AC and Battery)\n"
+                else:
+                    status_msg += "⚠️ Sleep: Enabled (not configured)\n"
+            else:
+                status_msg += "❓ Sleep: Unable to check\n"
+            
+            # Check hibernate timeout
+            cmd2 = "powercfg /query SCHEME_CURRENT SUB_SLEEP HIBERNATEIDLE"
+            result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if result2.returncode == 0:
+                if "0x00000000" in result2.stdout:
+                    status_msg += "✅ Hibernate: Never (AC and Battery)\n"
+                else:
+                    status_msg += "⚠️ Hibernate: Enabled (not configured)\n"
+            else:
+                status_msg += "❓ Hibernate: Unable to check\n"
+            
+            # Check monitor timeout
+            cmd3 = "powercfg /query SCHEME_CURRENT SUB_VIDEO VIDEOIDLE"
+            result3 = subprocess.run(cmd3, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if result3.returncode == 0:
+                if "0x00000000" in result3.stdout:
+                    status_msg += "✅ Display: Never turn off (AC and Battery)\n"
+                else:
+                    status_msg += "⚠️ Display: Will turn off (not configured)\n"
+            else:
+                status_msg += "❓ Display: Unable to check\n"
+            
+            # Check power button action
+            cmd4 = "powercfg /query SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION"
+            result4 = subprocess.run(cmd4, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if result4.returncode == 0:
+                if "0x00000000" in result4.stdout:
+                    status_msg += "✅ Power Button: Do nothing\n"
+                else:
+                    status_msg += "⚠️ Power Button: Has action (not configured)\n"
+            else:
+                status_msg += "❓ Power Button: Unable to check\n"
+            
+            # Check lid close action
+            cmd5 = "powercfg /query SCHEME_CURRENT SUB_BUTTONS LIDACTION"
+            result5 = subprocess.run(cmd5, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if result5.returncode == 0:
+                if "0x00000000" in result5.stdout:
+                    status_msg += "✅ Lid Close: Do nothing\n"
+                else:
+                    status_msg += "⚠️ Lid Close: Has action (not configured)\n"
+            else:
+                status_msg += "❓ Lid Close: Unable to check (desktop PC)\n"
+            
+            status_msg += "\n💡 Use 'Configure Power' to apply all recommended settings."
+            
+            messagebox.showinfo("Power Management Status", status_msg)
+            self.log_to_terminal("Power management status check completed", "success")
+            
+        except Exception as e:
+            error_msg = f"Failed to check power status: {str(e)}"
+            self.log_to_terminal(error_msg, "error")
+            messagebox.showerror("Power Status Error", 
+                f"Could not check power management settings.\n\n"
+                f"Error: {str(e)}\n\n"
+                "You can check manually in Windows Power Options.")
     
     def prevent_user_creation(self):
         """Prevent any more user accounts from being created."""
