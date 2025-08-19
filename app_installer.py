@@ -604,6 +604,13 @@ class InvokeX:
                                  "View Logs",
                                  lambda: self.view_power_logs())
         
+        # Tweak 5: Check Registry Keys
+        self.create_tweak_section(tweaks_container,
+                                 "Check Registry Keys",
+                                 "Verify if shutdown hiding registry keys exist",
+                                 "Check Keys",
+                                 lambda: self.check_registry_keys())
+        
         # Pack canvas and scrollbar
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
@@ -955,7 +962,7 @@ class InvokeX:
     def remove_shutdown_from_startup_smart(self):
         """
         Hide shutdown options from start menu based on Windows version.
-        Uses a more targeted approach that doesn't break right-click menus.
+        Uses a more direct approach with better error handling.
         """
         self.log_to_terminal("Attempting to hide shutdown options from start menu (smart detection)...", "info")
         
@@ -971,19 +978,19 @@ class InvokeX:
             windows_version = self.get_windows_version()
             self.log_to_terminal(f"Detected Windows version: {windows_version}", "INFO")
             
-            # Use a more targeted approach that doesn't break right-click menus
+            # Use direct registry manipulation with better error handling
             registry_commands = [
-                # Method 1: Hide shutdown options from start menu (more targeted)
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                # Create the policies key first
+                "New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null",
                 
-                # Method 2: Alternative approach - hide specific power options
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                # Hide shutdown options from start menu
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -Force",
                 
-                # Method 3: Hide shutdown from power button (if exists)
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                # Hide logoff option
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 1 -Type DWord -Force",
                 
-                # Create the policies key if it doesn't exist
-                "New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
+                # Hide shutdown from power button
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -Value 1 -Type DWord -Force"
             ]
             
             success_count = 0
@@ -991,27 +998,60 @@ class InvokeX:
             
             for i, command in enumerate(registry_commands, 1):
                 try:
-                    self.log_to_terminal(f"Executing registry command {i}/{total_commands}...", "info")
+                    self.log_to_terminal(f"Executing registry command {i}/{total_commands}: {command}", "info")
+                    
+                    # Execute the command and capture both output and errors
                     result = subprocess.run([
-                        "powershell", "-Command", command
+                        "powershell", "-ExecutionPolicy", "Bypass", "-Command", command
                     ], capture_output=True, text=True, timeout=30)
+                    
+                    # Log the full result for debugging
+                    self.log_to_terminal(f"Command {i} return code: {result.returncode}", "info")
+                    if result.stdout.strip():
+                        self.log_to_terminal(f"Command {i} stdout: {result.stdout.strip()}", "info")
+                    if result.stderr.strip():
+                        self.log_to_terminal(f"Command {i} stderr: {result.stderr.strip()}", "warning")
                     
                     if result.returncode == 0:
                         success_count += 1
                         self.log_to_terminal(f"Registry command {i} executed successfully.", "success")
                     else:
-                        # Check if this is a "key doesn't exist" error (which is normal)
+                        # Check if this is a "key doesn't exist" error (which is normal for some operations)
                         error_output = result.stderr.lower() if result.stderr else ""
                         if any(phrase in error_output for phrase in ["does not exist", "not found", "path not found"]):
                             self.log_to_terminal(f"Registry key not found (this is normal): {command}", "info")
                             success_count += 1  # Count as success since the goal is achieved
                         else:
-                            self.log_to_terminal(f"Registry command {i} failed: {result.stderr}", "warning")
+                            self.log_to_terminal(f"Registry command {i} failed with code {result.returncode}: {result.stderr}", "warning")
                             
                 except subprocess.TimeoutExpired:
                     self.log_to_terminal(f"Registry command {i} timed out.", "warning")
                 except Exception as e:
                     self.log_to_terminal(f"Registry command {i} error: {str(e)}", "warning")
+            
+            # Verify the registry keys were actually created
+            self.log_to_terminal("Verifying registry keys were created...", "info")
+            verify_commands = [
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -ErrorAction SilentlyContinue",
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -ErrorAction SilentlyContinue",
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -ErrorAction SilentlyContinue"
+            ]
+            
+            verification_success = 0
+            for i, verify_cmd in enumerate(verify_commands, 1):
+                try:
+                    verify_result = subprocess.run([
+                        "powershell", "-ExecutionPolicy", "Bypass", "-Command", verify_cmd
+                    ], capture_output=True, text=True, timeout=30)
+                    
+                    if verify_result.returncode == 0 and verify_result.stdout.strip():
+                        verification_success += 1
+                        self.log_to_terminal(f"Verification {i} successful: {verify_result.stdout.strip()}", "success")
+                    else:
+                        self.log_to_terminal(f"Verification {i} failed: {verify_result.stderr}", "warning")
+                        
+                except Exception as e:
+                    self.log_to_terminal(f"Verification {i} error: {str(e)}", "warning")
             
             # Apply the changes
             self.log_to_terminal("Applying registry changes...", "info")
@@ -1023,7 +1063,7 @@ class InvokeX:
                 self.log_to_terminal("Group Policy update completed.", "info")
             
             # Final verification
-            if success_count >= total_commands * 0.7:  # Allow 30% failure rate
+            if success_count >= total_commands * 0.7 and verification_success >= 2:  # Allow 30% failure rate and at least 2 verifications
                 self.log_to_terminal("Shutdown options hidden successfully!", "success")
                 self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
                 
@@ -1035,11 +1075,15 @@ class InvokeX:
                     "• Note: This only hides the UI elements, power management features remain enabled\n\n"
                     "⚠️ IMPORTANT: If you experience issues with right-click menus or window controls,\n"
                     "use the 'Restore Shutdown Options' button to revert changes.\n\n"
-                    "Note: You may need to restart Explorer or log off/on to see the changes.")
+                    "Note: You may need to restart Explorer or log off/on to see the changes.\n\n"
+                    f"Registry keys created: {verification_success}/3 verified")
             else:
-                self.log_to_terminal("Some registry commands failed. Please check the output above.", "warning")
+                self.log_to_terminal(f"Registry operations: {success_count}/{total_commands} successful", "warning")
+                self.log_to_terminal(f"Verification: {verification_success}/3 keys found", "warning")
                 messagebox.showwarning("Partial Success", 
-                    "Some shutdown hiding operations completed, but not all.\n\n"
+                    f"Some shutdown hiding operations completed, but not all.\n\n"
+                    f"Registry commands: {success_count}/{total_commands} successful\n"
+                    f"Verification: {verification_success}/3 keys found\n\n"
                     "Please check the terminal output for details and consider running as administrator.")
                 
         except Exception as e:
@@ -1305,6 +1349,69 @@ class InvokeX:
             
         except Exception as e:
             error_msg = f"Failed to open power logs: {str(e)}"
+            self.log_to_terminal(error_msg, "ERROR")
+            messagebox.showerror("Error", error_msg)
+    
+    def check_registry_keys(self):
+        """
+        Check if the shutdown hiding registry keys exist and show their values.
+        This helps debug registry key creation issues.
+        """
+        try:
+            self.log_to_terminal("Checking registry keys for shutdown hiding...", "INFO")
+            
+            # Check each registry key
+            registry_checks = [
+                ("NoClose", "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoClose"),
+                ("NoLogoff", "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoLogoff"),
+                ("NoShutdown", "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoShutdown")
+            ]
+            
+            results = []
+            for key_name, key_path in registry_checks:
+                try:
+                    # Use reg query command for more reliable results
+                    result = subprocess.run([
+                        'reg', 'query', key_path.replace('HKCU:', 'HKEY_CURRENT_USER')
+                    ], capture_output=True, text=True, timeout=30)
+                    
+                    if result.returncode == 0:
+                        # Parse the value
+                        lines = result.stdout.strip().split('\n')
+                        value = "Not found"
+                        for line in lines:
+                            if key_name in line and 'REG_DWORD' in line:
+                                parts = line.strip().split()
+                                if len(parts) >= 3:
+                                    value = parts[-1]
+                                    break
+                        
+                        results.append(f"✓ {key_name}: {value}")
+                        self.log_to_terminal(f"Registry key {key_name} found with value: {value}", "SUCCESS")
+                    else:
+                        results.append(f"✗ {key_name}: Not found")
+                        self.log_to_terminal(f"Registry key {key_name} not found", "WARNING")
+                        
+                except Exception as e:
+                    results.append(f"✗ {key_name}: Error - {str(e)}")
+                    self.log_to_terminal(f"Error checking {key_name}: {str(e)}", "ERROR")
+            
+            # Show results in a message box
+            result_text = "Registry Key Status:\n\n" + "\n".join(results)
+            
+            if any("✓" in result for result in results):
+                messagebox.showinfo("Registry Key Check", 
+                                  f"{result_text}\n\n"
+                                  "Some registry keys exist. If you're still seeing shutdown options,\n"
+                                  "try restarting Explorer or logging off/on.")
+            else:
+                messagebox.showwarning("Registry Key Check", 
+                                     f"{result_text}\n\n"
+                                     "No registry keys found. The shutdown hiding operation\n"
+                                     "may not have completed successfully.")
+            
+        except Exception as e:
+            error_msg = f"Failed to check registry keys: {str(e)}"
             self.log_to_terminal(error_msg, "ERROR")
             messagebox.showerror("Error", error_msg)
 
