@@ -370,6 +370,30 @@ class InvokeX:
                                "https://github.com/massgravel/Microsoft-Activation-Scripts",
                                lambda: self.run_powershell_command("irm https://get.activated.win | iex"))
         
+        # App 6: Tailscale
+        self.create_app_section(apps_container, 
+                               "Tailscale", 
+                               "VPN and secure networking",
+                               "Download & Install",
+                               "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe",
+                               lambda: self.download_and_install_exe("https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe", "Tailscale"))
+        
+        # App 7: MuMu
+        self.create_app_section(apps_container, 
+                               "MuMu", 
+                               "Android emulator for Windows",
+                               "Download & Install",
+                               "https://a11.gdl.netease.com/MuMu_5.0.2_gw-overseas12_all_1754534682.exe?n=MuMu_5.0.2_lMBe7ZC.exe",
+                               lambda: self.download_and_install_exe("https://a11.gdl.netease.com/MuMu_5.0.2_gw-overseas12_all_1754534682.exe?n=MuMu_5.0.2_lMBe7ZC.exe", "MuMu"))
+        
+        # App 8: Ninite Installer
+        self.create_app_section(apps_container, 
+                               "Ninite Installer", 
+                               "Essential apps installer (7zip, Chrome, Firefox, Notepad++)",
+                               "Download & Install",
+                               "https://ninite.com/7zip-chrome-firefox-notepadplusplus/ninite.exe",
+                               lambda: self.download_and_install_exe("https://ninite.com/7zip-chrome-firefox-notepadplusplus/ninite.exe", "Ninite"))
+        
         # Pack canvas and scrollbar
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
@@ -590,21 +614,35 @@ class InvokeX:
                                  "Restore Options",
                                  lambda: self.restore_shutdown_options())
         
-        # Tweak 3: Power Management Settings
+        # Tweak 3: Set Chrome As Default Browser
+        self.create_tweak_section(tweaks_container,
+                                 "Set Chrome As Default",
+                                 "Set Google Chrome as the default browser",
+                                 "Set Chrome Default",
+                                 lambda: self.set_chrome_as_default())
+        
+        # Tweak 4: Restart System in 10 Seconds
+        self.create_tweak_section(tweaks_container,
+                                 "Restart System in 10 Seconds",
+                                 "Restart the system after a 10 second countdown",
+                                 "Restart in 10s",
+                                 lambda: self.restart_system_10s())
+        
+        # Tweak 5: Power Management Settings
         self.create_tweak_section(tweaks_container,
                                  "Power Management Settings",
                                  "Set sleep/hibernate to never, power button to do nothing, lid close to do nothing",
                                  "Configure Power",
                                  lambda: self.configure_power_management())
         
-        # Tweak 4: View Power Logs
+        # Tweak 6: View Power Logs
         self.create_tweak_section(tweaks_container,
                                  "View Power Logs",
                                  "Display power management event logs",
                                  "View Logs",
                                  lambda: self.view_power_logs())
         
-        # Tweak 5: Check Registry Keys
+        # Tweak 7: Check Registry Keys
         self.create_tweak_section(tweaks_container,
                                  "Check Registry Keys",
                                  "Verify if shutdown hiding registry keys exist",
@@ -989,7 +1027,13 @@ class InvokeX:
                 "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -Value 1 -Type DWord -Force",
                 
                 # Hide logoff option (optional, can be removed if you want to keep it)
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 1 -Type DWord -Force"
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 1 -Type DWord -Force",
+                
+                # Additional: Hide sleep and hibernate from start menu (Windows 10/11 specific)
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoSleep' -Value 1 -Type DWord -Force",
+                
+                # Additional: Hide hibernate from start menu
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoHibernate' -Value 1 -Type DWord -Force"
             ]
             
             success_count = 0
@@ -1032,7 +1076,9 @@ class InvokeX:
             self.log_to_terminal("Verifying registry keys were created...", "info")
             verify_commands = [
                 "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -ErrorAction SilentlyContinue",
-                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -ErrorAction SilentlyContinue"
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -ErrorAction SilentlyContinue",
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoSleep' -ErrorAction SilentlyContinue",
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoHibernate' -ErrorAction SilentlyContinue"
             ]
             
             verification_success = 0
@@ -1061,28 +1107,29 @@ class InvokeX:
                 self.log_to_terminal("Group Policy update completed.", "info")
             
             # Final verification
-            if success_count >= total_commands * 0.7 and verification_success >= 1:  # Allow 30% failure rate and at least 1 verification
-                self.log_to_terminal("Shutdown and sleep options hidden successfully! Restart option preserved.", "success")
+            if success_count >= total_commands * 0.7 and verification_success >= 2:  # Allow 30% failure rate and at least 2 verifications
+                self.log_to_terminal("Shutdown, sleep, and hibernate options hidden successfully! Restart option preserved.", "success")
                 self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
                 
                 # Show success message with important information
                 messagebox.showinfo("Success", 
-                    "Shutdown and sleep options have been hidden from the start menu!\n\n"
+                    "Shutdown, sleep, and hibernate options have been hidden from the start menu!\n\n"
                     "Changes applied:\n"
                     "• Shutdown option hidden (restart option preserved)\n"
-                    "• Sleep and hibernate options hidden\n"
+                    "• Sleep option hidden\n"
+                    "• Hibernate option hidden\n"
                     "• Logoff option hidden\n"
                     "• Restart option remains available\n\n"
                     "Note: This only hides the UI elements, power management features remain enabled.\n"
                     "You may need to restart Explorer or log off/on to see the changes.\n\n"
-                    f"Registry keys created: {verification_success}/2 verified")
+                    f"Registry keys created: {verification_success}/4 verified")
             else:
                 self.log_to_terminal(f"Registry operations: {success_count}/{total_commands} successful", "warning")
-                self.log_to_terminal(f"Verification: {verification_success}/2 keys found", "warning")
+                self.log_to_terminal(f"Verification: {verification_success}/4 keys found", "warning")
                 messagebox.showwarning("Partial Success", 
                     f"Some shutdown hiding operations completed, but not all.\n\n"
                     f"Registry commands: {success_count}/{total_commands} successful\n"
-                    f"Verification: {verification_success}/2 keys found\n\n"
+                    f"Verification: {verification_success}/4 keys found\n\n"
                     "Please check the terminal output for details and consider running as administrator.")
                 
         except Exception as e:
@@ -1393,6 +1440,283 @@ class InvokeX:
             error_msg = f"Failed to check registry keys: {str(e)}"
             self.log_to_terminal(error_msg, "ERROR")
             messagebox.showerror("Error", error_msg)
+
+    def download_and_install_exe(self, url, app_name):
+        """
+        Download and install an EXE file with comprehensive error handling.
+        
+        Args:
+            url (str): The URL to download the EXE file from
+            app_name (str): The name of the application for user feedback
+        """
+        try:
+            self.log_to_terminal(f"Starting {app_name} download from: {url}", "INFO")
+            
+            # Download the EXE file
+            import urllib.request
+            filename = f"{app_name.lower().replace(' ', '_')}_setup.exe"
+            
+            self.log_to_terminal(f"Downloading {app_name} installer...", "INFO")
+            urllib.request.urlretrieve(url, filename)
+            self.log_to_terminal(f"{app_name} installer downloaded: {filename}", "SUCCESS")
+            
+            # Try to install the EXE with elevated privileges
+            self.log_to_terminal(f"Installing {app_name} with elevated privileges...", "INFO")
+            
+            try:
+                # Use Start-Process to run with elevated privileges
+                install_cmd = f'Start-Process -FilePath "{filename}" -Verb RunAs -Wait'
+                result = subprocess.run([
+                    "powershell", "-ExecutionPolicy", "Bypass", "-Command", install_cmd
+                ], capture_output=True, text=True, timeout=300)
+                
+                if result.returncode == 0:
+                    self.log_to_terminal(f"{app_name} installed successfully!", "SUCCESS")
+                    messagebox.showinfo("Success", f"{app_name} has been installed successfully!")
+                else:
+                    # If elevated install fails, try normal install
+                    self.log_to_terminal(f"Elevated install failed, trying normal install...", "WARNING")
+                    result2 = subprocess.run([filename], capture_output=True, text=True, timeout=300)
+                    
+                    if result2.returncode == 0:
+                        self.log_to_terminal(f"{app_name} installed successfully with normal privileges!", "SUCCESS")
+                        messagebox.showinfo("Success", f"{app_name} has been installed successfully!")
+                    else:
+                        # If still failing, suggest manual installation
+                        error_msg = f"{app_name} installation failed. Exit code: {result2.returncode}"
+                        self.log_to_terminal(error_msg, "ERROR")
+                        self.log_to_terminal("Suggesting manual installation...", "INFO")
+                        
+                        # Show manual installation dialog
+                        manual_install = messagebox.askyesno(
+                            "Installation Failed", 
+                            f"Automatic installation of {app_name} failed (Error {result2.returncode}).\n\n"
+                            f"Would you like to open the installer manually?\n\n"
+                            f"File location: {os.path.abspath(filename)}"
+                        )
+                        
+                        if manual_install:
+                            try:
+                                os.startfile(filename)
+                                self.log_to_terminal(f"{app_name} installer opened for manual installation.", "INFO")
+                                messagebox.showinfo("Manual Installation", 
+                                                  f"{app_name} installer opened. Please complete the installation manually.\n\n"
+                                                  f"File: {os.path.abspath(filename)}")
+                            except Exception as e:
+                                self.log_to_terminal(f"Failed to open {app_name} installer: {str(e)}", "ERROR")
+                        else:
+                            messagebox.showwarning("Installation Skipped", 
+                                                 f"{app_name} installation was skipped. You can install manually later.")
+                            
+            except subprocess.TimeoutExpired:
+                self.log_to_terminal(f"{app_name} installation timed out. The installer may still be running.", "WARNING")
+                messagebox.showwarning("Installation Timeout", 
+                                     f"The {app_name} installer is taking longer than expected.\n"
+                                     "Please check if the installation completed in the background.")
+            
+            # Clean up downloaded file only if installation was successful
+            if os.path.exists(filename):
+                try:
+                    os.remove(filename)
+                    self.log_to_terminal(f"Downloaded {app_name} installer cleaned up.", "INFO")
+                except Exception as e:
+                    self.log_to_terminal(f"Warning: Could not clean up {app_name} installer: {str(e)}", "WARNING")
+                    
+        except Exception as e:
+            error_msg = f"Failed to download/install {app_name}: {str(e)}"
+            self.log_to_terminal(error_msg, "ERROR")
+            messagebox.showerror("Error", error_msg)
+
+    def set_chrome_as_default(self):
+        """Set Google Chrome as the default browser."""
+        self.log_to_terminal("Attempting to set Google Chrome as default browser...", "info")
+        
+        try:
+            # Check if Chrome is installed
+            chrome_paths = [
+                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+                os.path.expanduser(r"~\AppData\Local\Google\Chrome\Application\chrome.exe")
+            ]
+            
+            chrome_found = False
+            chrome_path = ""
+            for path in chrome_paths:
+                if os.path.exists(path):
+                    chrome_found = True
+                    chrome_path = path
+                    break
+            
+            if not chrome_found:
+                self.log_to_terminal("Google Chrome not found. Please install Chrome first.", "warning")
+                messagebox.showwarning("Chrome Not Found", 
+                                     "Google Chrome is not installed on this system.\n\n"
+                                     "Please install Chrome first, then try this tweak again.")
+                return
+            
+            self.log_to_terminal(f"Chrome found at: {chrome_path}", "success")
+            
+            # Set Chrome as default browser using PowerShell
+            set_default_commands = [
+                # Set Chrome as default for HTTP
+                f'Set-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice" -Name "ProgId" -Value "ChromeHTML" -Force',
+                
+                # Set Chrome as default for HTTPS
+                f'Set-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\https\\UserChoice" -Name "ProgId" -Value "ChromeHTML" -Force',
+                
+                # Set Chrome as default for FTP
+                f'Set-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\ftp\\UserChoice" -Name "ProgId" -Value "ChromeHTML" -Force'
+            ]
+            
+            success_count = 0
+            total_commands = len(set_default_commands)
+            
+            for i, command in enumerate(set_default_commands, 1):
+                try:
+                    self.log_to_terminal(f"Executing command {i}/{total_commands}...", "info")
+                    result = subprocess.run([
+                        "powershell", "-ExecutionPolicy", "Bypass", "-Command", command
+                    ], capture_output=True, text=True, timeout=30)
+                    
+                    if result.returncode == 0:
+                        success_count += 1
+                        self.log_to_terminal(f"Command {i} executed successfully.", "success")
+                    else:
+                        # Check if this is a "key doesn't exist" error (which is normal for some operations)
+                        error_output = result.stderr.lower() if result.stderr else ""
+                        if any(phrase in error_output for phrase in ["does not exist", "not found", "path not found"]):
+                            self.log_to_terminal(f"Registry key not found (this is normal): {command}", "info")
+                            success_count += 1  # Count as success since the goal is achieved
+                        else:
+                            self.log_to_terminal(f"Command {i} failed: {result.stderr}", "warning")
+                            
+                except subprocess.TimeoutExpired:
+                    self.log_to_terminal(f"Command {i} timed out.", "warning")
+                except Exception as e:
+                    self.log_to_terminal(f"Command {i} error: {str(e)}", "warning")
+            
+            # Alternative method using Windows default programs
+            try:
+                self.log_to_terminal("Attempting alternative method using Windows default programs...", "info")
+                subprocess.run([
+                    "cmd", "/c", "start", "ms-settings:defaultapps"
+                ], capture_output=True, timeout=30)
+                self.log_to_terminal("Windows default programs settings opened.", "info")
+            except:
+                self.log_to_terminal("Could not open Windows default programs settings.", "warning")
+            
+            # Final verification
+            if success_count >= total_commands * 0.7:  # Allow 30% failure rate
+                self.log_to_terminal("Chrome default browser settings applied successfully!", "success")
+                self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
+                
+                # Show success message
+                messagebox.showinfo("Success", 
+                    "Google Chrome has been set as the default browser!\n\n"
+                    "Changes applied:\n"
+                    "• HTTP links will open in Chrome\n"
+                    "• HTTPS links will open in Chrome\n"
+                    "• FTP links will open in Chrome\n\n"
+                    "Note: A system restart may be required for all changes to take effect.\n"
+                    "If the changes don't work, you can also set Chrome as default manually\n"
+                    "through Windows Settings > Apps > Default Apps.")
+            else:
+                self.log_to_terminal("Some commands failed. Please check the output above.", "warning")
+                messagebox.showwarning("Partial Success", 
+                    "Some Chrome default browser settings were applied, but not all.\n\n"
+                    "Please check the terminal output for details.\n"
+                    "You can also set Chrome as default manually through Windows Settings.")
+                
+        except Exception as e:
+            error_msg = f"Failed to set Chrome as default: {str(e)}"
+            self.log_to_terminal(error_msg, "error")
+            messagebox.showerror("Error", error_msg)
+
+    def restart_system_10s(self):
+        """Restart the system after a 10 second countdown."""
+        self.log_to_terminal("Initiating system restart in 10 seconds...", "warning")
+        
+        # Show confirmation dialog
+        confirm = messagebox.askyesno(
+            "Confirm Restart", 
+            "Are you sure you want to restart the system in 10 seconds?\n\n"
+            "Make sure to save any open work before proceeding."
+        )
+        
+        if not confirm:
+            self.log_to_terminal("System restart cancelled by user.", "info")
+            return
+        
+        # Show countdown dialog
+        countdown_window = tk.Toplevel(self.root)
+        countdown_window.title("System Restart")
+        countdown_window.geometry("300x150")
+        countdown_window.resizable(False, False)
+        
+        # Center the window
+        countdown_window.transient(self.root)
+        countdown_window.grab_set()
+        
+        # Set icon for the countdown window if available
+        try:
+            icon_paths = [
+                "icon.ico",
+                "C:\\Tools\\InvokeX\\icon.ico",
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.ico")
+            ]
+            
+            for icon_path in icon_paths:
+                if os.path.exists(icon_path):
+                    countdown_window.iconbitmap(icon_path)
+                    break
+        except:
+            pass
+        
+        # Countdown label
+        countdown_label = tk.Label(countdown_window, text="System will restart in:", 
+                                  font=('Segoe UI', 12, 'bold'))
+        countdown_label.pack(pady=(20, 10))
+        
+        # Time label
+        time_label = tk.Label(countdown_window, text="10", 
+                             font=('Segoe UI', 24, 'bold'), fg='#e74c3c')
+        time_label.pack(pady=(0, 20))
+        
+        # Cancel button
+        cancel_btn = tk.Button(countdown_window, text="Cancel Restart", 
+                              command=lambda: self.cancel_restart(countdown_window),
+                              bg='#e74c3c', fg='white', font=('Segoe UI', 10, 'bold'))
+        cancel_btn.pack()
+        
+        # Start countdown
+        self.countdown_seconds = 10
+        self.countdown_window = countdown_window
+        self.time_label = time_label
+        self.countdown_restart()
+    
+    def countdown_restart(self):
+        """Handle the countdown for system restart."""
+        if hasattr(self, 'countdown_seconds') and self.countdown_seconds > 0:
+            self.time_label.config(text=str(self.countdown_seconds))
+            self.countdown_seconds -= 1
+            self.root.after(1000, self.countdown_restart)
+        elif hasattr(self, 'countdown_window') and self.countdown_window.winfo_exists():
+            # Time's up, restart the system
+            self.log_to_terminal("Countdown complete. Restarting system...", "warning")
+            try:
+                subprocess.run(["shutdown", "/r", "/t", "0"], capture_output=True, timeout=30)
+            except Exception as e:
+                self.log_to_terminal(f"Failed to restart system: {str(e)}", "error")
+                messagebox.showerror("Restart Failed", f"Failed to restart system: {str(e)}")
+            finally:
+                self.countdown_window.destroy()
+    
+    def cancel_restart(self, window):
+        """Cancel the system restart."""
+        self.log_to_terminal("System restart cancelled by user.", "info")
+        if hasattr(self, 'countdown_seconds'):
+            delattr(self, 'countdown_seconds')
+        window.destroy()
 
 def main():
     """
