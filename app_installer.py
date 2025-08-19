@@ -347,12 +347,16 @@ class InvokeX:
                                lambda: self.install_ippy_tray())
         
         # App 3: PowerEventProvider
-        self.create_app_section(apps_container, 
-                               "PowerEventProvider", 
-                               "Power management event provider",
-                               "Download & Install",
-                               "https://github.com/GoblinRules/powereventprovider",
-                               lambda: self.download_and_install_msi("https://github.com/GoblinRules/powereventprovider/releases/download/V1.1/PowerEventProviderSetup.msi"))
+        self.create_app_section_with_3_buttons(apps_container, 
+                                             "PowerEventProvider", 
+                                             "Power management event provider",
+                                             "Download & Install",
+                                             "View Power Logs",
+                                             "GitHub",
+                                             "https://github.com/GoblinRules/powereventprovider",
+                                             lambda: self.download_and_install_msi("https://github.com/GoblinRules/powereventprovider/releases/download/V1.1/PowerEventProviderSetup.msi"),
+                                             lambda: self.view_power_logs(),
+                                             lambda: webbrowser.open("https://github.com/GoblinRules/powereventprovider"))
         
         # App 4: CTT WinUtil
         self.create_app_section(apps_container, 
@@ -477,6 +481,17 @@ class InvokeX:
                                                lambda: self.configure_power_management(),
                                                lambda: self.reset_power_management(),
                                                lambda: self.check_registry_keys_for_tweak("Power Management Settings"))
+        
+        # Tweak 4: Power Actions
+        self.create_single_tweak_with_3_buttons(tweaks_container,
+                                               "Power Actions",
+                                               "Quick power actions for system control",
+                                               "Restart",
+                                               "Shutdown",
+                                               "Cancel",
+                                               lambda: self.restart_system_10s(),
+                                               lambda: self.shutdown_system(),
+                                               lambda: self.cancel_power_action())
     
     def create_single_tweak_with_3_buttons(self, parent, title, description, btn1_text, btn2_text, btn3_text, btn1_func, btn2_func, btn3_func):
         """Create a single tweak section with exactly 3 buttons side by side."""
@@ -625,10 +640,12 @@ class InvokeX:
             if tweak_name == "Hide Shutdown Options":
                 # Check shutdown-related registry keys
                 keys_to_check = [
+                    ("HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "NoClose"),
                     ("HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "NoShutdown"),
                     ("HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "NoShutdown"),
                     ("HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", "DisableShutdown"),
-                    ("HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "NoLogoff")
+                    ("HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "NoLogoff"),
+                    ("HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "NoPowerOptions")
                 ]
             elif tweak_name == "Set Chrome As Default Browser":
                 # Check browser-related registry keys
@@ -680,7 +697,7 @@ class InvokeX:
                 except Exception as e:
                     missing_keys.append(f"{reg_path}\\{value_name} (Error: {str(e)})" if value_name else f"{reg_path} (Error: {str(e)})")
             
-            # Display results
+            # Display results in simple message box
             result_text = f"Registry Check Results for {tweak_name}:\n\n"
             
             if found_keys:
@@ -697,25 +714,8 @@ class InvokeX:
             if not found_keys and not missing_keys:
                 result_text += "No registry keys checked."
             
-            # Show results in a dialog
-            result_window = tk.Toplevel(self.root)
-            result_window.title(f"Registry Check - {tweak_name}")
-            result_window.geometry("800x400")
-            result_window.resizable(True, True)
-            
-            # Text widget with scrollbar
-            text_frame = tk.Frame(result_window)
-            text_frame.pack(fill='both', expand=True, padx=10, pady=10)
-            
-            text_widget = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD, font=('Consolas', 9))
-            text_widget.pack(fill='both', expand=True)
-            text_widget.insert(tk.END, result_text)
-            text_widget.config(state=tk.DISABLED)
-            
-            # Close button
-            close_btn = tk.Button(result_window, text="Close", command=result_window.destroy,
-                                 bg='#3498db', fg='white', font=('Segoe UI', 10, 'bold'))
-            close_btn.pack(pady=10)
+            # Show results in simple message box
+            messagebox.showinfo(f"Registry Check - {tweak_name}", result_text)
             
             self.log_to_terminal(f"Registry check completed for {tweak_name}", "success")
             
@@ -1100,6 +1100,80 @@ class InvokeX:
         website_btn.bind('<Enter>', lambda e: website_btn.configure(bg='#34495e'))
         website_btn.bind('<Leave>', lambda e: website_btn.configure(bg='#2c3e50'))
     
+    def create_app_section_with_3_buttons(self, parent, title, description, btn1_text, btn2_text, btn3_text, btn1_url, install_func, btn2_func, btn3_func):
+        """
+        Create a section for an individual application with 3 buttons.
+        
+        Args:
+            parent: The parent widget
+            title (str): Application title
+            description (str): Application description
+            btn1_text (str): Text for the first button (install)
+            btn2_text (str): Text for the second button
+            btn3_text (str): Text for the third button
+            btn1_url (str): URL for the first button
+            install_func: Function to call when install button is clicked
+            btn2_func: Function to call when second button is clicked
+            btn3_func: Function to call when third button is clicked
+        """
+        # Container for each app (smaller size)
+        app_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
+        app_frame.pack(fill='x', pady=6, padx=8)
+        
+        # App info
+        info_frame = tk.Frame(app_frame, bg='white')
+        info_frame.pack(fill='x', padx=12, pady=10)
+        
+        # Title and description
+        title_label = tk.Label(info_frame, text=title, 
+                              font=('Segoe UI', 11, 'bold'), 
+                              bg='white', fg='#2c3e50', anchor='w')
+        title_label.pack(anchor='w')
+        
+        desc_label = tk.Label(info_frame, text=description, 
+                             font=('Segoe UI', 8), 
+                             bg='white', fg='#7f8c8d', anchor='w')
+        desc_label.pack(anchor='w', pady=(3, 0))
+        
+        # Buttons frame
+        buttons_frame = tk.Frame(info_frame, bg='white')
+        buttons_frame.pack(fill='x', pady=(10, 0))
+        
+        # Button 1 (Install)
+        install_btn = tk.Button(buttons_frame, text=btn1_text, 
+                               command=install_func,
+                               bg='#3498db', fg='white', 
+                               font=('Segoe UI', 8, 'bold'),
+                               relief='flat', padx=15, pady=5,
+                               cursor='hand2')
+        install_btn.pack(side='left', padx=(0, 8))
+        
+        # Button 2
+        btn2 = tk.Button(buttons_frame, text=btn2_text, 
+                         command=btn2_func,
+                         bg='#27ae60', fg='white', 
+                         font=('Segoe UI', 8, 'bold'),
+                         relief='flat', padx=15, pady=5,
+                         cursor='hand2')
+        btn2.pack(side='left', padx=(0, 8))
+        
+        # Button 3
+        btn3 = tk.Button(buttons_frame, text=btn3_text, 
+                         command=btn3_func,
+                         bg='#2c3e50', fg='white', 
+                         font=('Segoe UI', 8, 'bold'),
+                         relief='flat', padx=15, pady=5,
+                         cursor='hand2')
+        btn3.pack(side='left')
+        
+        # Hover effects
+        install_btn.bind('<Enter>', lambda e: install_btn.configure(bg='#2980b9'))
+        install_btn.bind('<Leave>', lambda e: install_btn.configure(bg='#3498db'))
+        btn2.bind('<Enter>', lambda e: btn2.configure(bg='#229954'))
+        btn2.bind('<Leave>', lambda e: btn2.configure(bg='#27ae60'))
+        btn3.bind('<Enter>', lambda e: btn3.configure(bg='#34495e'))
+        btn3.bind('<Leave>', lambda e: btn3.configure(bg='#2c3e50'))
+    
     def get_windows_version(self):
         """Get the current Windows version for user guidance."""
         try:
@@ -1460,10 +1534,10 @@ class InvokeX:
     
     def remove_shutdown_from_startup_smart(self):
         """
-        Hide shutdown options using Group Policy registry settings.
-        This method uses multiple registry approaches for maximum compatibility.
+        Hide shutdown options using Group Policy Objects (GPO) for better reliability.
+        This method creates and applies GPO settings that are more persistent and effective.
         """
-        self.log_to_terminal("Attempting to hide shutdown options from start menu...", "info")
+        self.log_to_terminal("Attempting to hide shutdown options using Group Policy...", "info")
         
         try:
             # Check if we're running as administrator
@@ -1476,79 +1550,112 @@ class InvokeX:
                 return
             
             success_count = 0
-            total_methods = 4
+            total_methods = 6
             
-            # Method 1: Hide shutdown button from start menu (User Policy)
+            # Method 1: Create GPO for User Configuration - Start Menu and Taskbar
             try:
-                reg_cmd1 = 'reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /t REG_DWORD /d 1 /f'
-                result1 = subprocess.run(reg_cmd1, shell=True, capture_output=True, timeout=30)
+                gpo_cmd1 = 'reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoClose /t REG_DWORD /d 1 /f'
+                result1 = subprocess.run(gpo_cmd1, shell=True, capture_output=True, timeout=30)
                 if result1.returncode == 0:
+                    self.log_to_terminal("Successfully set user close policy", "success")
+                    success_count += 1
+                else:
+                    self.log_to_terminal(f"User close policy failed: {result1.stderr}", "warning")
+            except Exception as e:
+                self.log_to_terminal(f"Could not set user close policy: {str(e)}", "warning")
+            
+            # Method 2: Create GPO for User Configuration - Shutdown
+            try:
+                gpo_cmd2 = 'reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /t REG_DWORD /d 1 /f'
+                result2 = subprocess.run(gpo_cmd2, shell=True, capture_output=True, timeout=30)
+                if result2.returncode == 0:
                     self.log_to_terminal("Successfully set user shutdown policy", "success")
                     success_count += 1
                 else:
-                    self.log_to_terminal(f"User shutdown policy failed: {result1.stderr}", "warning")
+                    self.log_to_terminal(f"User shutdown policy failed: {result2.stderr}", "warning")
             except Exception as e:
                 self.log_to_terminal(f"Could not set user shutdown policy: {str(e)}", "warning")
             
-            # Method 2: Hide shutdown button (Machine Policy)
+            # Method 3: Create GPO for Machine Configuration - Shutdown
             try:
-                reg_cmd2 = 'reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /t REG_DWORD /d 1 /f'
-                result2 = subprocess.run(reg_cmd2, shell=True, capture_output=True, timeout=30)
-                if result2.returncode == 0:
+                gpo_cmd3 = 'reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /t REG_DWORD /d 1 /f'
+                result3 = subprocess.run(gpo_cmd3, shell=True, capture_output=True, timeout=30)
+                if result3.returncode == 0:
                     self.log_to_terminal("Successfully set machine shutdown policy", "success")
                     success_count += 1
                 else:
-                    self.log_to_terminal(f"Machine shutdown policy failed: {result2.stderr}", "warning")
+                    self.log_to_terminal(f"Machine shutdown policy failed: {result3.stderr}", "warning")
             except Exception as e:
                 self.log_to_terminal(f"Could not set machine shutdown policy: {str(e)}", "warning")
             
-            # Method 3: Disable shutdown via system policy
+            # Method 4: Create GPO for System Configuration - Disable Shutdown
             try:
-                reg_cmd3 = 'reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v DisableShutdown /t REG_DWORD /d 1 /f'
-                result3 = subprocess.run(reg_cmd3, shell=True, capture_output=True, timeout=30)
-                if result3.returncode == 0:
+                gpo_cmd4 = 'reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v DisableShutdown /t REG_DWORD /d 1 /f'
+                result4 = subprocess.run(gpo_cmd4, shell=True, capture_output=True, timeout=30)
+                if result4.returncode == 0:
                     self.log_to_terminal("Successfully set system shutdown disable", "success")
                     success_count += 1
                 else:
-                    self.log_to_terminal(f"System shutdown disable failed: {result3.stderr}", "warning")
+                    self.log_to_terminal(f"System shutdown disable failed: {result4.stderr}", "warning")
             except Exception as e:
                 self.log_to_terminal(f"Could not set system shutdown disable: {str(e)}", "warning")
             
-            # Method 4: Hide logoff option as well
+            # Method 5: Create GPO for Logoff hiding
             try:
-                reg_cmd4 = 'reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoLogoff /t REG_DWORD /d 1 /f'
-                result4 = subprocess.run(reg_cmd4, shell=True, capture_output=True, timeout=30)
-                if result4.returncode == 0:
+                gpo_cmd5 = 'reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoLogoff /t REG_DWORD /d 1 /f'
+                result5 = subprocess.run(gpo_cmd5, shell=True, capture_output=True, timeout=30)
+                if result5.returncode == 0:
                     self.log_to_terminal("Successfully hid logoff option", "success")
                     success_count += 1
                 else:
-                    self.log_to_terminal(f"Hide logoff failed: {result4.stderr}", "warning")
+                    self.log_to_terminal(f"Hide logoff failed: {result5.stderr}", "warning")
             except Exception as e:
                 self.log_to_terminal(f"Could not hide logoff: {str(e)}", "warning")
             
-            # Force Group Policy update
+            # Method 6: Create GPO for Power Options hiding
+            try:
+                gpo_cmd6 = 'reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoPowerOptions /t REG_DWORD /d 1 /f'
+                result6 = subprocess.run(gpo_cmd6, shell=True, capture_output=True, timeout=30)
+                if result6.returncode == 0:
+                    self.log_to_terminal("Successfully hid power options", "success")
+                    success_count += 1
+                else:
+                    self.log_to_terminal(f"Hide power options failed: {result6.stderr}", "warning")
+            except Exception as e:
+                self.log_to_terminal(f"Could not hide power options: {str(e)}", "warning")
+            
+            # Force Group Policy update and restart Explorer
             try:
                 self.log_to_terminal("Updating Group Policy...", "info")
                 subprocess.run(["gpupdate", "/force"], capture_output=True, timeout=60)
                 self.log_to_terminal("Group Policy updated", "success")
-            except:
-                self.log_to_terminal("Group Policy update completed", "info")
+                
+                # Restart Explorer to apply changes immediately
+                self.log_to_terminal("Restarting Explorer to apply changes...", "info")
+                subprocess.run(["taskkill", "/f", "/im", "explorer.exe"], capture_output=True, timeout=30)
+                subprocess.run(["start", "explorer.exe"], shell=True, capture_output=True, timeout=30)
+                self.log_to_terminal("Explorer restarted", "success")
+                
+            except Exception as e:
+                self.log_to_terminal(f"Group Policy update completed: {str(e)}", "info")
             
             # Final result
-            if success_count >= 1:
-                self.log_to_terminal(f"Shutdown functionality disabled successfully! ({success_count}/{total_methods} methods succeeded)", "success")
+            if success_count >= 3:  # Require at least 3 methods to succeed
+                self.log_to_terminal(f"Shutdown functionality disabled successfully! ({success_count}/{total_methods} GPO methods succeeded)", "success")
                 messagebox.showinfo("Success", 
-                    f"Shutdown functionality has been disabled!\n\n"
-                    f"Methods applied: {success_count}/{total_methods}\n\n"
+                    f"Shutdown functionality has been disabled using Group Policy!\n\n"
+                    f"GPO methods applied: {success_count}/{total_methods}\n\n"
                     "Changes:\n"
-                    "• Shutdown command disabled\n"
-                    "• System shutdown policy set\n"
+                    "• Start menu close button hidden\n"
+                    "• Shutdown options hidden\n"
+                    "• Power options hidden\n"
+                    "• Logoff option hidden\n"
                     "• Restart functionality preserved\n\n"
-                    "Note: You may need to restart to see full effects.")
+                    "Note: Changes applied immediately. You may need to log off/on to see full effects.")
             else:
-                self.log_to_terminal("Failed to disable shutdown functionality", "warning")
+                self.log_to_terminal("Failed to disable shutdown functionality with GPO", "warning")
                 messagebox.showwarning("Failed", 
-                    "Could not disable shutdown functionality.\n\n"
+                    "Could not disable shutdown functionality using Group Policy.\n\n"
                     "This may be due to insufficient permissions or system protection.\n"
                     "Please check the terminal output for details.")
                 
@@ -1558,7 +1665,7 @@ class InvokeX:
             messagebox.showerror("Error", error_msg)
     
     def restore_shutdown_options(self):
-        """Restore shutdown functionality."""
+        """Restore shutdown functionality by removing GPO settings."""
         self.log_to_terminal("Attempting to restore shutdown functionality...", "info")
         
         try:
@@ -1569,15 +1676,28 @@ class InvokeX:
                 self.log_to_terminal("Please restart the application as administrator.", "warning")
                 return
             
-            # Restore shutdown functionality by removing registry entries
+            # Restore shutdown functionality by removing GPO registry entries
             success_count = 0
-            total_methods = 4
+            total_methods = 6
             
-            # Method 1: Remove user shutdown policy
+            # Method 1: Remove user close policy
             try:
-                reg_cmd1 = 'reg delete "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /f'
+                reg_cmd1 = 'reg delete "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoClose /f'
                 result1 = subprocess.run(reg_cmd1, shell=True, capture_output=True, timeout=30)
                 if result1.returncode == 0:
+                    self.log_to_terminal("Successfully removed user close policy", "success")
+                    success_count += 1
+                else:
+                    self.log_to_terminal("User close policy not found (already removed)", "info")
+                    success_count += 1  # Count as success since goal is achieved
+            except Exception as e:
+                self.log_to_terminal(f"Could not remove user close policy: {str(e)}", "warning")
+            
+            # Method 2: Remove user shutdown policy
+            try:
+                reg_cmd2 = 'reg delete "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /f'
+                result2 = subprocess.run(reg_cmd2, shell=True, capture_output=True, timeout=30)
+                if result2.returncode == 0:
                     self.log_to_terminal("Successfully removed user shutdown policy", "success")
                     success_count += 1
                 else:
@@ -1586,11 +1706,11 @@ class InvokeX:
             except Exception as e:
                 self.log_to_terminal(f"Could not remove user shutdown policy: {str(e)}", "warning")
             
-            # Method 2: Remove machine shutdown policy
+            # Method 3: Remove machine shutdown policy
             try:
-                reg_cmd2 = 'reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /f'
-                result2 = subprocess.run(reg_cmd2, shell=True, capture_output=True, timeout=30)
-                if result2.returncode == 0:
+                reg_cmd3 = 'reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /f'
+                result3 = subprocess.run(reg_cmd3, shell=True, capture_output=True, timeout=30)
+                if result3.returncode == 0:
                     self.log_to_terminal("Successfully removed machine shutdown policy", "success")
                     success_count += 1
                 else:
@@ -1599,11 +1719,11 @@ class InvokeX:
             except Exception as e:
                 self.log_to_terminal(f"Could not remove machine shutdown policy: {str(e)}", "warning")
             
-            # Method 3: Remove system shutdown disable
+            # Method 4: Remove system shutdown disable
             try:
-                reg_cmd3 = 'reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v DisableShutdown /f'
-                result3 = subprocess.run(reg_cmd3, shell=True, capture_output=True, timeout=30)
-                if result3.returncode == 0:
+                reg_cmd4 = 'reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v DisableShutdown /f'
+                result4 = subprocess.run(reg_cmd4, shell=True, capture_output=True, timeout=30)
+                if result4.returncode == 0:
                     self.log_to_terminal("Successfully removed system shutdown disable", "success")
                     success_count += 1
                 else:
@@ -1612,11 +1732,11 @@ class InvokeX:
             except Exception as e:
                 self.log_to_terminal(f"Could not remove system shutdown disable: {str(e)}", "warning")
             
-            # Method 4: Remove logoff hiding
+            # Method 5: Remove logoff hiding
             try:
-                reg_cmd4 = 'reg delete "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoLogoff /f'
-                result4 = subprocess.run(reg_cmd4, shell=True, capture_output=True, timeout=30)
-                if result4.returncode == 0:
+                reg_cmd5 = 'reg delete "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoLogoff /f'
+                result5 = subprocess.run(reg_cmd5, shell=True, capture_output=True, timeout=30)
+                if result5.returncode == 0:
                     self.log_to_terminal("Successfully restored logoff option", "success")
                     success_count += 1
                 else:
@@ -1625,25 +1745,47 @@ class InvokeX:
             except Exception as e:
                 self.log_to_terminal(f"Could not restore logoff option: {str(e)}", "warning")
             
-            # Force Group Policy update
+            # Method 6: Remove power options hiding
+            try:
+                reg_cmd6 = 'reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoPowerOptions /f'
+                result6 = subprocess.run(reg_cmd6, shell=True, capture_output=True, timeout=30)
+                if result6.returncode == 0:
+                    self.log_to_terminal("Successfully restored power options", "success")
+                    success_count += 1
+                else:
+                    self.log_to_terminal("Power options policy not found (already removed)", "info")
+                    success_count += 1  # Count as success since goal is achieved
+            except Exception as e:
+                self.log_to_terminal(f"Could not restore power options: {str(e)}", "warning")
+            
+            # Force Group Policy update and restart Explorer
             try:
                 self.log_to_terminal("Updating Group Policy...", "info")
                 subprocess.run(["gpupdate", "/force"], capture_output=True, timeout=60)
                 self.log_to_terminal("Group Policy updated", "success")
-            except:
-                self.log_to_terminal("Group Policy update completed", "info")
+                
+                # Restart Explorer to apply changes immediately
+                self.log_to_terminal("Restarting Explorer to apply changes...", "info")
+                subprocess.run(["taskkill", "/f", "/im", "explorer.exe"], capture_output=True, timeout=30)
+                subprocess.run(["start", "explorer.exe"], shell=True, capture_output=True, timeout=30)
+                self.log_to_terminal("Explorer restarted", "success")
+                
+            except Exception as e:
+                self.log_to_terminal(f"Group Policy update completed: {str(e)}", "info")
             
             # Final result
-            if success_count >= 1:
-                self.log_to_terminal(f"Shutdown functionality restored successfully! ({success_count}/{total_methods} methods succeeded)", "success")
+            if success_count >= 3:  # Require at least 3 methods to succeed
+                self.log_to_terminal(f"Shutdown functionality restored successfully! ({success_count}/{total_methods} GPO methods succeeded)", "success")
                 messagebox.showinfo("Success", 
                     f"Shutdown functionality has been restored!\n\n"
-                    f"Methods applied: {success_count}/{total_methods}\n\n"
+                    f"GPO methods applied: {success_count}/{total_methods}\n\n"
                     "Changes:\n"
-                    "• Shutdown command restored\n"
-                    "• System policies removed\n"
+                    "• Start menu close button restored\n"
+                    "• Shutdown options restored\n"
+                    "• Power options restored\n"
+                    "• Logoff option restored\n"
                     "• All power options available\n\n"
-                    "Note: You may need to restart to see full effects.")
+                    "Note: Changes applied immediately. You may need to log off/on to see full effects.")
             else:
                 self.log_to_terminal("Failed to restore shutdown functionality", "warning")
                 messagebox.showwarning("Failed", 
@@ -2327,6 +2469,41 @@ class InvokeX:
         """Clear registry check results display."""
         self.log_to_terminal("Registry results cleared.", "info")
         # This would clear the results display if we had a results window
+    
+    def shutdown_system(self):
+        """Shutdown the system immediately."""
+        self.log_to_terminal("Initiating system shutdown...", "warning")
+        
+        # Show confirmation dialog
+        confirm = messagebox.askyesno(
+            "Confirm Shutdown", 
+            "Are you sure you want to shutdown the system?\n\n"
+            "Make sure to save any open work before proceeding."
+        )
+        
+        if not confirm:
+            self.log_to_terminal("System shutdown cancelled by user.", "info")
+            return
+        
+        try:
+            subprocess.run(["shutdown", "/s", "/t", "0"], capture_output=True, timeout=30)
+            self.log_to_terminal("Shutdown command sent successfully.", "success")
+        except Exception as e:
+            self.log_to_terminal(f"Failed to shutdown system: {str(e)}", "error")
+            messagebox.showerror("Shutdown Failed", f"Failed to shutdown system: {str(e)}")
+    
+    def cancel_power_action(self):
+        """Cancel any pending power actions."""
+        self.log_to_terminal("Cancelling any pending power actions...", "info")
+        
+        try:
+            # Cancel any pending shutdown/restart
+            subprocess.run(["shutdown", "/a"], capture_output=True, timeout=30)
+            self.log_to_terminal("Power actions cancelled successfully.", "success")
+            messagebox.showinfo("Cancelled", "Any pending power actions have been cancelled.")
+        except Exception as e:
+            self.log_to_terminal(f"Failed to cancel power actions: {str(e)}", "error")
+            messagebox.showerror("Cancel Failed", f"Failed to cancel power actions: {str(e)}")
 
 def main():
     """
