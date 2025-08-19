@@ -492,8 +492,27 @@ class InvokeX:
             elif app_name == "MASS":
                 # Check if Windows is activated (MASS purpose)
                 try:
+                    # Try multiple methods to check activation status
+                    # Method 1: slmgr /xpr
                     result = subprocess.run(['slmgr', '/xpr'], capture_output=True, text=True, timeout=10)
-                    return "permanently activated" in result.stdout.lower()
+                    if "permanently activated" in result.stdout.lower():
+                        return True
+                    
+                    # Method 2: slmgr /dli (more detailed info)
+                    result2 = subprocess.run(['slmgr', '/dli'], capture_output=True, text=True, timeout=10)
+                    if "license status: licensed" in result2.stdout.lower():
+                        return True
+                    
+                    # Method 3: PowerShell method
+                    ps_result = subprocess.run([
+                        'powershell', '-Command', 
+                        '(Get-WmiObject -Query "SELECT LicenseStatus FROM SoftwareLicensingProduct WHERE PartialProductKey IS NOT NULL").LicenseStatus'
+                    ], capture_output=True, text=True, timeout=10)
+                    
+                    if ps_result.stdout.strip() == "1":  # 1 means licensed
+                        return True
+                        
+                    return False
                 except:
                     return False
             else:
@@ -510,9 +529,15 @@ class InvokeX:
             status_label: The status label widget to update
         """
         try:
-            is_installed = self.check_app_installed(app_name)
-            status_text = "✓ Installed" if is_installed else "○ Not Installed"
-            status_color = "#27ae60" if is_installed else "#95a5a6"
+            if app_name == "MASS":
+                is_activated = self.check_app_installed(app_name)
+                status_text = "✓ Windows Activated" if is_activated else "✗ Windows Not Activated"
+                status_color = "#27ae60" if is_activated else "#e74c3c"  # Green if activated, red if not
+            else:
+                is_installed = self.check_app_installed(app_name)
+                status_text = "✓ Installed" if is_installed else "○ Not Installed"
+                status_color = "#27ae60" if is_installed else "#95a5a6"
+                
             status_label.config(text=status_text, fg=status_color)
         except Exception as e:
             self.log_to_terminal(f"Error refreshing status for {app_name}: {str(e)}", "WARNING")
@@ -548,10 +573,16 @@ class InvokeX:
                              bg='white', fg='#7f8c8d', anchor='w')
         desc_label.pack(anchor='w', pady=(3, 0))
         
-        # Status indicator
-        is_installed = self.check_app_installed(title)
-        status_text = "✓ Installed" if is_installed else "○ Not Installed"
-        status_color = "#27ae60" if is_installed else "#95a5a6"
+        # Status indicator - special handling for MASS
+        if title == "MASS":
+            is_activated = self.check_app_installed(title)
+            status_text = "✓ Windows Activated" if is_activated else "✗ Windows Not Activated"
+            status_color = "#27ae60" if is_activated else "#e74c3c"  # Green if activated, red if not
+        else:
+            is_installed = self.check_app_installed(title)
+            status_text = "✓ Installed" if is_installed else "○ Not Installed"
+            status_color = "#27ae60" if is_installed else "#95a5a6"
+            
         status_label = tk.Label(info_frame, text=status_text, 
                                font=('Segoe UI', 8, 'bold'), 
                                bg='white', fg=status_color, anchor='w')
@@ -576,20 +607,32 @@ class InvokeX:
                                cursor='hand2')
         install_btn.pack(side='left', padx=(0, 8))
         
-        # GitHub button
-        github_btn = tk.Button(buttons_frame, text="GitHub", 
+        # Determine button label based on URL
+        if "github.com" in github_url.lower():
+            button_label = "GitHub"
+        elif "tailscale.com" in github_url.lower():
+            button_label = "Tailscale"
+        elif "mumuplayer.com" in github_url.lower():
+            button_label = "MuMu"
+        elif "ninite.com" in github_url.lower():
+            button_label = "Ninite"
+        else:
+            button_label = "Homepage"
+        
+        # Website/GitHub button
+        website_btn = tk.Button(buttons_frame, text=button_label, 
                               command=lambda: webbrowser.open(github_url),
                               bg='#2c3e50', fg='white', 
                               font=('Segoe UI', 8, 'bold'),
                               relief='flat', padx=15, pady=5,
                               cursor='hand2')
-        github_btn.pack(side='left')
+        website_btn.pack(side='left')
         
         # Hover effects
         install_btn.bind('<Enter>', lambda e: install_btn.configure(bg='#2980b9'))
         install_btn.bind('<Leave>', lambda e: install_btn.configure(bg='#3498db'))
-        github_btn.bind('<Enter>', lambda e: github_btn.configure(bg='#34495e'))
-        github_btn.bind('<Leave>', lambda e: github_btn.configure(bg='#2c3e50'))
+        website_btn.bind('<Enter>', lambda e: website_btn.configure(bg='#34495e'))
+        website_btn.bind('<Leave>', lambda e: website_btn.configure(bg='#2c3e50'))
     
     def get_windows_version(self):
         """Get the current Windows version for user guidance."""
@@ -1116,14 +1159,20 @@ class InvokeX:
                 # Create the policies key first with proper error handling
                 "if (!(Test-Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer')) { New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force | Out-Null }",
                 
-                # Hide shutdown from start menu (but keep restart) - more targeted approach
+                # Method 1: Hide shutdown from start menu (but keep restart)
                 "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoShutdown /t REG_DWORD /d 1 /f",
                 
-                # Hide logoff option
+                # Method 2: Hide logoff option
                 "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoLogoff /t REG_DWORD /d 1 /f",
                 
-                # Hide sleep and hibernate options through power settings
-                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced' /v Start_PowerButtonAction /t REG_DWORD /d 0 /f"
+                # Method 3: Disable shutdown through system policy (more aggressive)
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoClose /t REG_DWORD /d 1 /f",
+                
+                # Method 4: Hide power button completely from start menu
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced' /v Start_PowerButtonAction /t REG_DWORD /d 0 /f",
+                
+                # Method 5: Disable shutdown via system policies (alternative path)
+                "reg add 'HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' /v DisableShutdown /t REG_DWORD /d 1 /f"
             ]
             
             success_count = 0
@@ -1174,6 +1223,7 @@ class InvokeX:
             verify_commands = [
                 "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -ErrorAction SilentlyContinue",
                 "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -ErrorAction SilentlyContinue",
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -ErrorAction SilentlyContinue",
                 "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced' -Name 'Start_PowerButtonAction' -ErrorAction SilentlyContinue"
             ]
             
@@ -1218,14 +1268,14 @@ class InvokeX:
                     "• Restart option remains available\n\n"
                     "Note: This only hides the UI elements, power management features remain enabled.\n"
                     "You may need to restart Explorer or log off/on to see the changes.\n\n"
-                    f"Registry keys created: {verification_success}/3 verified")
+                    f"Registry keys created: {verification_success}/4 verified")
             else:
                 self.log_to_terminal(f"Registry operations: {success_count}/{total_commands} successful", "warning")
-                self.log_to_terminal(f"Verification: {verification_success}/3 keys found", "warning")
+                self.log_to_terminal(f"Verification: {verification_success}/4 keys found", "warning")
                 messagebox.showwarning("Partial Success", 
                     f"Some shutdown hiding operations completed, but not all.\n\n"
                     f"Registry commands: {success_count}/{total_commands} successful\n"
-                    f"Verification: {verification_success}/3 keys found\n\n"
+                    f"Verification: {verification_success}/4 keys found\n\n"
                     "Please check the terminal output for details and consider running as administrator.")
                 
         except Exception as e:
@@ -1253,8 +1303,14 @@ class InvokeX:
                 # Restore logoff option
                 "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 0 -Type DWord -Force",
                 
+                # Restore close option
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 0 -Type DWord -Force",
+                
                 # Restore power button action
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced' -Name 'Start_PowerButtonAction' -Value 1 -Type DWord -Force"
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced' -Name 'Start_PowerButtonAction' -Value 1 -Type DWord -Force",
+                
+                # Remove system-level shutdown disable
+                "Remove-ItemProperty -Path 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'DisableShutdown' -Force -ErrorAction SilentlyContinue"
             ]
             
             success_count = 0
