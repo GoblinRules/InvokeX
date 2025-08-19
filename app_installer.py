@@ -420,7 +420,7 @@ class InvokeX:
             canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         
         def _bind_mousewheel(event):
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
         def _unbind_mousewheel(event):
             canvas.unbind_all("<MouseWheel>")
@@ -1128,10 +1128,10 @@ class InvokeX:
             # Show loading initially, check later
             status_text = "○ Checking activation..."
             status_color = "#95a5a6"
-        status_label = tk.Label(info_frame, text=status_text, 
-                               font=('Segoe UI', 8, 'bold'), 
-                               bg='white', fg=status_color, anchor='w')
-        status_label.pack(anchor='w', pady=(5, 0))
+            status_label = tk.Label(info_frame, text=status_text, 
+                                   font=('Segoe UI', 8, 'bold'), 
+                                   bg='white', fg=status_color, anchor='w')
+            status_label.pack(anchor='w', pady=(5, 0))
             # Check activation in background
             self.root.after(100, lambda: self.check_mass_activation_async(status_label))
         elif title == "CTT WinUtil":
@@ -1675,8 +1675,8 @@ class InvokeX:
                 result2 = subprocess.run(gpo_cmd2, shell=True, capture_output=True, timeout=30)
                 if result2.returncode == 0:
                     self.log_to_terminal("Successfully set user shutdown policy", "success")
-                        success_count += 1
-                    else:
+                    success_count += 1
+                else:
                     self.log_to_terminal(f"User shutdown policy failed: {result2.stderr}", "warning")
             except Exception as e:
                 self.log_to_terminal(f"Could not set user shutdown policy: {str(e)}", "warning")
@@ -1690,7 +1690,7 @@ class InvokeX:
                     success_count += 1
                 else:
                     self.log_to_terminal(f"Machine shutdown policy failed: {result3.stderr}", "warning")
-                except Exception as e:
+            except Exception as e:
                 self.log_to_terminal(f"Could not set machine shutdown policy: {str(e)}", "warning")
             
             # Method 4: Create GPO for System Configuration - Disable Shutdown
