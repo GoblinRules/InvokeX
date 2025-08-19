@@ -682,11 +682,86 @@ class InvokeX:
             messagebox.showerror("Error", error_msg)
     
     def install_ippy_tray(self):
-        """Install IP Python Tray App with multiple fallback methods."""
+        """Install IP Python Tray App with Python dependency checking and multiple fallback methods."""
         self.log_to_terminal("Starting IP Python Tray App installation...", "info")
         
         try:
-            # Method 1: Try to set execution policy first
+            # Step 1: Check if Python is installed
+            self.log_to_terminal("Checking Python installation...", "info")
+            python_check = subprocess.run(['python', '--version'], 
+                                        capture_output=True, text=True, timeout=10)
+            
+            if python_check.returncode != 0:
+                self.log_to_terminal("Python not found. Attempting to install Python...", "warning")
+                
+                # Try to install Python using winget (Windows Package Manager)
+                try:
+                    self.log_to_terminal("Installing Python using winget...", "info")
+                    python_install = subprocess.run([
+                        'winget', 'install', 'Python.Python.3.11', '--accept-source-agreements'
+                    ], capture_output=True, text=True, timeout=300)
+                    
+                    if python_install.returncode == 0:
+                        self.log_to_terminal("Python installed successfully using winget!", "success")
+                        # Refresh environment variables
+                        self.log_to_terminal("Refreshing environment variables...", "info")
+                        subprocess.run(['refreshenv'], shell=True, capture_output=True, timeout=30)
+                    else:
+                        self.log_to_terminal("winget installation failed. Trying alternative method...", "warning")
+                        
+                        # Alternative: Download and install Python from python.org
+                        self.log_to_terminal("Downloading Python from python.org...", "info")
+                        python_url = "https://www.python.org/ftp/python/3.11.8/python-3.11.8-amd64.exe"
+                        python_installer = "python-installer.exe"
+                        
+                        try:
+                            import urllib.request
+                            urllib.request.urlretrieve(python_url, python_installer)
+                            self.log_to_terminal("Python installer downloaded. Installing...", "info")
+                            
+                            # Install Python silently
+                            install_result = subprocess.run([
+                                python_installer, '/quiet', 'InstallAllUsers=1', 'PrependPath=1'
+                            ], capture_output=True, text=True, timeout=300)
+                            
+                            if install_result.returncode == 0:
+                                self.log_to_terminal("Python installed successfully!", "success")
+                                # Refresh environment variables
+                                subprocess.run(['refreshenv'], shell=True, capture_output=True, timeout=30)
+                            else:
+                                self.log_to_terminal("Python installation failed. Please install Python manually.", "error")
+                                messagebox.showerror("Python Required", 
+                                                   "Python is required but could not be installed automatically.\n\n"
+                                                   "Please install Python from https://www.python.org/downloads/\n"
+                                                   "Make sure to check 'Add Python to PATH' during installation.")
+                                return
+                                
+                        except Exception as e:
+                            self.log_to_terminal(f"Failed to download Python: {str(e)}", "error")
+                            messagebox.showerror("Python Required", 
+                                               "Python is required but could not be downloaded.\n\n"
+                                               "Please install Python from https://www.python.org/downloads/\n"
+                                               "Make sure to check 'Add Python to PATH' during installation.")
+                            return
+                except Exception as e:
+                    self.log_to_terminal(f"winget not available: {str(e)}. Trying alternative Python installation...", "warning")
+                    # Continue with alternative methods...
+            else:
+                self.log_to_terminal(f"Python found: {python_check.stdout.strip()}", "success")
+            
+            # Step 2: Verify Python is now accessible
+            self.log_to_terminal("Verifying Python installation...", "info")
+            final_python_check = subprocess.run(['python', '--version'], 
+                                              capture_output=True, text=True, timeout=10)
+            
+            if final_python_check.returncode != 0:
+                self.log_to_terminal("Python still not accessible. Please restart the application after installing Python.", "error")
+                messagebox.showerror("Python Not Accessible", 
+                                   "Python was installed but is not accessible from the current session.\n\n"
+                                   "Please restart the application and try again.")
+                return
+            
+            # Step 3: Set PowerShell execution policy
             self.log_to_terminal("Setting PowerShell execution policy...", "info")
             result = subprocess.run([
                 "powershell", "-Command", 
@@ -698,8 +773,8 @@ class InvokeX:
             else:
                 self.log_to_terminal("Warning: Could not set execution policy.", "warning")
             
-            # Method 2: Try the original installation command
-            self.log_to_terminal("Executing first installation command...", "info")
+            # Step 4: Try the original installation command
+            self.log_to_terminal("Executing IP Python Tray App installation...", "info")
             result = subprocess.run([
                 "powershell", "-ExecutionPolicy", "Bypass", "-Command",
                 "irm 'https://raw.githubusercontent.com/GoblinRules/ippy-tray-app/main/install.ps1' | iex"
@@ -708,11 +783,14 @@ class InvokeX:
             if result.returncode == 0:
                 self.log_to_terminal("IP Python Tray App installed successfully!", "success")
                 self.log_to_terminal("Note: A system reboot may be required for the tray app to appear.", "info")
+                messagebox.showinfo("Installation Complete", 
+                                  "IP Python Tray App has been installed successfully!\n\n"
+                                  "Note: A system reboot may be required for the tray app to appear.")
                 return
             else:
                 self.log_to_terminal(f"First command failed: {result.stderr}", "warning")
             
-            # Method 3: Try with TLS security protocol settings
+            # Step 5: Try with TLS security protocol settings
             self.log_to_terminal("Setting TLS security protocol...", "info")
             tls_result = subprocess.run([
                 "powershell", "-Command",
@@ -724,7 +802,7 @@ class InvokeX:
             else:
                 self.log_to_terminal("Warning: Could not set TLS protocol.", "warning")
             
-            # Method 4: Try with .NET Framework crypto settings
+            # Step 6: Try with .NET Framework crypto settings
             self.log_to_terminal("Setting .NET Framework crypto settings...", "info")
             crypto_result = subprocess.run([
                 "powershell", "-Command",
@@ -736,7 +814,7 @@ class InvokeX:
             else:
                 self.log_to_terminal("Warning: Could not update .NET Framework crypto settings.", "warning")
             
-            # Method 5: Try with WOW64 settings
+            # Step 7: Try with WOW64 settings
             self.log_to_terminal("Setting WOW64 .NET Framework crypto settings...", "info")
             wow64_result = subprocess.run([
                 "powershell", "-Command",
@@ -748,7 +826,7 @@ class InvokeX:
             else:
                 self.log_to_terminal("Warning: Could not update WOW64 .NET Framework crypto settings.", "warning")
             
-            # Method 6: Final attempt with all settings applied
+            # Step 8: Final attempt with all settings applied
             self.log_to_terminal("Executing final installation command...", "info")
             final_result = subprocess.run([
                 "powershell", "-ExecutionPolicy", "Bypass", "-Command",
@@ -758,14 +836,36 @@ class InvokeX:
             if final_result.returncode == 0:
                 self.log_to_terminal("IP Python Tray App installed successfully!", "success")
                 self.log_to_terminal("Note: A system reboot may be required for the tray app to appear.", "info")
+                messagebox.showinfo("Installation Complete", 
+                                  "IP Python Tray App has been installed successfully!\n\n"
+                                  "Note: A system reboot may be required for the tray app to appear.")
             else:
                 self.log_to_terminal(f"Final installation failed: {final_result.stderr}", "error")
                 self.log_to_terminal("All installation methods failed. Please try installing manually.", "error")
+                messagebox.showerror("Installation Failed", 
+                                   "All installation methods failed.\n\n"
+                                   "Please try installing manually from:\n"
+                                   "https://github.com/GoblinRules/ippy-tray-app")
                 
         except subprocess.TimeoutExpired:
             self.log_to_terminal("Installation timed out. Please try again.", "error")
+            messagebox.showerror("Installation Timeout", 
+                               "The installation process timed out.\n\n"
+                               "Please try again or install manually.")
         except Exception as e:
             self.log_to_terminal(f"Installation error: {str(e)}", "error")
+            messagebox.showerror("Installation Error", 
+                               f"An error occurred during installation:\n{str(e)}\n\n"
+                               "Please try installing manually.")
+        
+        # Clean up downloaded files
+        for cleanup_file in ["python-installer.exe"]:
+            if os.path.exists(cleanup_file):
+                try:
+                    os.remove(cleanup_file)
+                    self.log_to_terminal(f"Cleaned up: {cleanup_file}", "info")
+                except Exception as e:
+                    self.log_to_terminal(f"Warning: Could not clean up {cleanup_file}: {str(e)}", "warning")
     
     def download_and_install_msi(self, url):
         """
@@ -855,6 +955,7 @@ class InvokeX:
     def remove_shutdown_from_startup_smart(self):
         """
         Hide shutdown options from start menu based on Windows version.
+        Uses a more targeted approach that doesn't break right-click menus.
         """
         self.log_to_terminal("Attempting to hide shutdown options from start menu (smart detection)...", "info")
         
@@ -870,29 +971,20 @@ class InvokeX:
             windows_version = self.get_windows_version()
             self.log_to_terminal(f"Detected Windows version: {windows_version}", "INFO")
             
-            # Registry keys specific to Windows 10
-            if "Windows 10" in windows_version:
-                self.log_to_terminal("Applying Windows 10 specific registry changes for shutdown removal.", "info")
-                registry_commands = [
-                    # Hide shutdown, restart, sleep, and hibernate options in start menu (Windows 10)
-                    "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
-                    
-                    # Create the policies key if it doesn't exist
-                    "New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
-                ]
-            # Registry keys specific to Windows 11
-            elif "Windows 11" in windows_version:
-                self.log_to_terminal("Applying Windows 11 specific registry changes for shutdown removal.", "info")
-                registry_commands = [
-                    # Hide shutdown, restart, sleep, and hibernate options in start menu (Windows 11)
-                    "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
-                    
-                    # Create the policies key if it doesn't exist
-                    "New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
-                ]
-            else:
-                self.log_to_terminal("Unsupported Windows version for shutdown removal. No changes applied.", "warning")
-                return
+            # Use a more targeted approach that doesn't break right-click menus
+            registry_commands = [
+                # Method 1: Hide shutdown options from start menu (more targeted)
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Method 2: Alternative approach - hide specific power options
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Method 3: Hide shutdown from power button (if exists)
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Create the policies key if it doesn't exist
+                "New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
+            ]
             
             success_count = 0
             total_commands = len(registry_commands)
@@ -935,12 +1027,14 @@ class InvokeX:
                 self.log_to_terminal("Shutdown options hidden successfully!", "success")
                 self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
                 
-                # Show success message
+                # Show success message with important warning
                 messagebox.showinfo("Success", 
                     "Shutdown options have been hidden from the start menu!\n\n"
                     "Changes applied:\n"
                     "• Shutdown, restart, sleep, and hibernate options hidden from start menu\n"
                     "• Note: This only hides the UI elements, power management features remain enabled\n\n"
+                    "⚠️ IMPORTANT: If you experience issues with right-click menus or window controls,\n"
+                    "use the 'Restore Shutdown Options' button to revert changes.\n\n"
                     "Note: You may need to restart Explorer or log off/on to see the changes.")
             else:
                 self.log_to_terminal("Some registry commands failed. Please check the output above.", "warning")
@@ -965,12 +1059,18 @@ class InvokeX:
                 self.log_to_terminal("Please restart the application as administrator.", "warning")
                 return
             
-            # Registry keys to restore
+            # Registry keys to restore (including the new ones we set)
             restore_commands = [
                 # Restore shutdown option in start menu
                 "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
                 
-                # Restore shutdown option from power button
+                # Restore logoff option
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Restore shutdown from power button
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Restore shutdown option from power button (system level)
                 "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'ShutdownWithoutLogon' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
                 
                 # Restore restart option from Ctrl+Alt+Del menu
@@ -1036,7 +1136,8 @@ class InvokeX:
                     "• Shutdown option restored\n"
                     "• Restart option restored\n"
                     "• Sleep option restored\n"
-                    "• Hibernate option restored\n\n"
+                    "• Hibernate option restored\n"
+                    "• Right-click menus and window controls should now work normally\n\n"
                     "Note: A system restart may be required for all changes to take effect.")
             else:
                 self.log_to_terminal("Some restore commands failed. Please check the output above.", "warning")
