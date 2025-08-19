@@ -375,7 +375,7 @@ class InvokeX:
                                "Tailscale", 
                                "VPN and secure networking",
                                "Download & Install",
-                               "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe",
+                               "https://tailscale.com/",
                                lambda: self.download_and_install_exe("https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe", "Tailscale"))
         
         # App 7: MuMu
@@ -383,7 +383,7 @@ class InvokeX:
                                "MuMu", 
                                "Android emulator for Windows",
                                "Download & Install",
-                               "https://a11.gdl.netease.com/MuMu_5.0.2_gw-overseas12_all_1754534682.exe?n=MuMu_5.0.2_lMBe7ZC.exe",
+                               "https://www.mumuplayer.com/",
                                lambda: self.download_and_install_exe("https://a11.gdl.netease.com/MuMu_5.0.2_gw-overseas12_all_1754534682.exe?n=MuMu_5.0.2_lMBe7ZC.exe", "MuMu"))
         
         # App 8: Ninite Installer
@@ -391,7 +391,7 @@ class InvokeX:
                                "Ninite Installer", 
                                "Essential apps installer (7zip, Chrome, Firefox, Notepad++)",
                                "Download & Install",
-                               "https://ninite.com/7zip-chrome-firefox-notepadplusplus/ninite.exe",
+                               "https://ninite.com/",
                                lambda: self.download_and_install_exe("https://ninite.com/7zip-chrome-firefox-notepadplusplus/ninite.exe", "Ninite"))
         
         # Pack canvas and scrollbar
@@ -431,22 +431,64 @@ class InvokeX:
                 ]
                 return any(os.path.exists(loc) for loc in locations)
             elif app_name == "Tailscale":
-                # Check if Tailscale is installed
+                # Check if Tailscale is installed - improved detection
                 locations = [
                     "C:\\Program Files\\Tailscale\\tailscale.exe",
                     "C:\\Program Files (x86)\\Tailscale\\tailscale.exe",
-                    os.path.expanduser("~\\AppData\\Local\\Tailscale\\tailscale.exe")
+                    os.path.expanduser("~\\AppData\\Local\\Tailscale\\tailscale.exe"),
+                    "C:\\ProgramData\\Tailscale\\tailscale.exe"
                 ]
+                # Also check registry for Tailscale
+                try:
+                    import winreg
+                    key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall")
+                    for i in range(winreg.QueryInfoKey(key)[0]):
+                        subkey_name = winreg.EnumKey(key, i)
+                        subkey = winreg.OpenKey(key, subkey_name)
+                        try:
+                            display_name = winreg.QueryValueEx(subkey, "DisplayName")[0]
+                            if "tailscale" in display_name.lower():
+                                return True
+                        except:
+                            pass
+                        winreg.CloseKey(subkey)
+                    winreg.CloseKey(key)
+                except:
+                    pass
                 return any(os.path.exists(loc) for loc in locations)
             elif app_name == "MuMu":
-                # Check if MuMu is installed
+                # Check if MuMu is installed - improved detection
                 locations = [
                     "C:\\Program Files\\Netease\\MuMu Player 12",
                     "C:\\Program Files (x86)\\Netease\\MuMu Player 12",
                     "C:\\Program Files\\MuMu Player 12",
-                    "C:\\Program Files (x86)\\MuMu Player 12"
+                    "C:\\Program Files (x86)\\MuMu Player 12",
+                    os.path.expanduser("~\\AppData\\Local\\MuMu Player 12"),
+                    "C:\\MuMu Player 12"
                 ]
-                return any(os.path.exists(loc) for loc in locations)
+                # Also check for MuMu executables
+                exe_locations = [
+                    "C:\\Program Files\\Netease\\MuMu Player 12\\shell\\MuMuPlayer.exe",
+                    "C:\\Program Files (x86)\\Netease\\MuMu Player 12\\shell\\MuMuPlayer.exe"
+                ]
+                # Check registry for MuMu
+                try:
+                    import winreg
+                    key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall")
+                    for i in range(winreg.QueryInfoKey(key)[0]):
+                        subkey_name = winreg.EnumKey(key, i)
+                        subkey = winreg.OpenKey(key, subkey_name)
+                        try:
+                            display_name = winreg.QueryValueEx(subkey, "DisplayName")[0]
+                            if "mumu" in display_name.lower() or "netease" in display_name.lower():
+                                return True
+                        except:
+                            pass
+                        winreg.CloseKey(subkey)
+                    winreg.CloseKey(key)
+                except:
+                    pass
+                return any(os.path.exists(loc) for loc in locations) or any(os.path.exists(loc) for loc in exe_locations)
             elif app_name == "MASS":
                 # Check if Windows is activated (MASS purpose)
                 try:
@@ -459,6 +501,22 @@ class InvokeX:
         except:
             return False
     
+    def refresh_app_status(self, app_name, status_label):
+        """
+        Refresh the status of a specific app.
+        
+        Args:
+            app_name (str): The name of the application
+            status_label: The status label widget to update
+        """
+        try:
+            is_installed = self.check_app_installed(app_name)
+            status_text = "✓ Installed" if is_installed else "○ Not Installed"
+            status_color = "#27ae60" if is_installed else "#95a5a6"
+            status_label.config(text=status_text, fg=status_color)
+        except Exception as e:
+            self.log_to_terminal(f"Error refreshing status for {app_name}: {str(e)}", "WARNING")
+
     def create_app_section(self, parent, title, description, button_text, github_url, install_func):
         """
         Create a section for an individual application.
@@ -503,9 +561,15 @@ class InvokeX:
         buttons_frame = tk.Frame(info_frame, bg='white')
         buttons_frame.pack(fill='x', pady=(10, 0))
         
+        # Create wrapper function that refreshes status after installation
+        def install_and_refresh():
+            install_func()
+            # Refresh status after installation
+            self.root.after(1000, lambda: self.refresh_app_status(title, status_label))
+        
         # Install button
         install_btn = tk.Button(buttons_frame, text=button_text, 
-                               command=install_func,
+                               command=install_and_refresh,
                                bg='#3498db', fg='white', 
                                font=('Segoe UI', 8, 'bold'),
                                relief='flat', padx=15, pady=5,
@@ -1052,10 +1116,13 @@ class InvokeX:
                 # Create the policies key first with proper error handling
                 "if (!(Test-Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer')) { New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force | Out-Null }",
                 
-                # Hide shutdown from start menu using Group Policy settings
-                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoClose /t REG_DWORD /d 1 /f",
+                # Hide shutdown from start menu (but keep restart) - more targeted approach
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoShutdown /t REG_DWORD /d 1 /f",
                 
-                # Alternative approach: Hide specific power options
+                # Hide logoff option
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoLogoff /t REG_DWORD /d 1 /f",
+                
+                # Hide sleep and hibernate options through power settings
                 "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced' /v Start_PowerButtonAction /t REG_DWORD /d 0 /f"
             ]
             
@@ -1105,7 +1172,8 @@ class InvokeX:
             # Verify the registry keys were actually created
             self.log_to_terminal("Verifying registry keys were created...", "info")
             verify_commands = [
-                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -ErrorAction SilentlyContinue",
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -ErrorAction SilentlyContinue",
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -ErrorAction SilentlyContinue",
                 "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced' -Name 'Start_PowerButtonAction' -ErrorAction SilentlyContinue"
             ]
             
@@ -1135,7 +1203,7 @@ class InvokeX:
                 self.log_to_terminal("Group Policy update completed.", "info")
             
             # Final verification
-            if success_count >= total_commands * 0.7 and verification_success >= 1:  # Allow 30% failure rate and at least 1 verification
+            if success_count >= total_commands * 0.7 and verification_success >= 2:  # Allow 30% failure rate and at least 2 verifications
                 self.log_to_terminal("Shutdown, sleep, and hibernate options hidden successfully! Restart option preserved.", "success")
                 self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
                 
@@ -1150,14 +1218,14 @@ class InvokeX:
                     "• Restart option remains available\n\n"
                     "Note: This only hides the UI elements, power management features remain enabled.\n"
                     "You may need to restart Explorer or log off/on to see the changes.\n\n"
-                    f"Registry keys created: {verification_success}/2 verified")
+                    f"Registry keys created: {verification_success}/3 verified")
             else:
                 self.log_to_terminal(f"Registry operations: {success_count}/{total_commands} successful", "warning")
-                self.log_to_terminal(f"Verification: {verification_success}/2 keys found", "warning")
+                self.log_to_terminal(f"Verification: {verification_success}/3 keys found", "warning")
                 messagebox.showwarning("Partial Success", 
                     f"Some shutdown hiding operations completed, but not all.\n\n"
                     f"Registry commands: {success_count}/{total_commands} successful\n"
-                    f"Verification: {verification_success}/2 keys found\n\n"
+                    f"Verification: {verification_success}/3 keys found\n\n"
                     "Please check the terminal output for details and consider running as administrator.")
                 
         except Exception as e:
@@ -1183,7 +1251,10 @@ class InvokeX:
                 "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -Value 0 -Type DWord -Force",
                 
                 # Restore logoff option
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 0 -Type DWord -Force"
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 0 -Type DWord -Force",
+                
+                # Restore power button action
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced' -Name 'Start_PowerButtonAction' -Value 1 -Type DWord -Force"
             ]
             
             success_count = 0
@@ -1505,18 +1576,19 @@ class InvokeX:
             self.log_to_terminal(f"Installing {app_name} with elevated privileges...", "INFO")
             
             try:
-                # Use Start-Process to run with elevated privileges and silent install for Ninite
-                if "ninite" in app_name.lower():
-                    # Ninite works better with silent mode
-                    install_cmd = f'Start-Process -FilePath "{filename}" -ArgumentList "/silent" -Verb RunAs -Wait'
-                else:
-                    install_cmd = f'Start-Process -FilePath "{filename}" -Verb RunAs -Wait'
-                    
-                # Reduce timeout and add better error handling to prevent freezing
+                # Handle different installer types
                 timeout_seconds = 120 if "mumu" in app_name.lower() else 300
-                result = subprocess.run([
-                    "powershell", "-ExecutionPolicy", "Bypass", "-Command", install_cmd
-                ], capture_output=True, text=True, timeout=timeout_seconds)
+                
+                if "ninite" in app_name.lower():
+                    # Ninite installers work best when run directly without /silent flag
+                    self.log_to_terminal("Running Ninite installer directly (no silent mode)...", "INFO")
+                    result = subprocess.run([filename], capture_output=True, text=True, timeout=timeout_seconds)
+                else:
+                    # Use Start-Process for other installers with elevated privileges
+                    install_cmd = f'Start-Process -FilePath "{filename}" -Verb RunAs -Wait'
+                    result = subprocess.run([
+                        "powershell", "-ExecutionPolicy", "Bypass", "-Command", install_cmd
+                    ], capture_output=True, text=True, timeout=timeout_seconds)
                 
                 if result.returncode == 0:
                     self.log_to_terminal(f"{app_name} installed successfully!", "SUCCESS")
