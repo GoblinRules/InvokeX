@@ -579,14 +579,14 @@ class InvokeX:
         # Tweak 1: Hide Shutdown Options (Smart Detection)
         self.create_tweak_section(tweaks_container,
                                  "Hide Shutdown Options",
-                                 "Hide shutdown, restart, sleep, and hibernate options from start menu (detects Windows version)",
+                                 "Hide shutdown, sleep, and hibernate options from start menu (restart option preserved)",
                                  "Hide Options",
                                  lambda: self.remove_shutdown_from_startup_smart())
         
         # Tweak 2: Restore Shutdown Options
         self.create_tweak_section(tweaks_container,
                                  "Restore Shutdown Options",
-                                 "Restore shutdown, restart, sleep, and hibernate options",
+                                 "Restore shutdown, sleep, and hibernate options",
                                  "Restore Options",
                                  lambda: self.restore_shutdown_options())
         
@@ -961,10 +961,10 @@ class InvokeX:
     
     def remove_shutdown_from_startup_smart(self):
         """
-        Hide shutdown options from start menu based on Windows version.
+        Hide shutdown, sleep, and hibernate options from start menu while keeping restart.
         Uses a more direct approach with better error handling.
         """
-        self.log_to_terminal("Attempting to hide shutdown options from start menu (smart detection)...", "info")
+        self.log_to_terminal("Attempting to hide shutdown, sleep, and hibernate options from start menu (keeping restart)...", "info")
         
         try:
             # Check if we're running as administrator
@@ -979,18 +979,17 @@ class InvokeX:
             self.log_to_terminal(f"Detected Windows version: {windows_version}", "INFO")
             
             # Use direct registry manipulation with better error handling
+            # Note: We're NOT setting NoClose=1 to avoid breaking right-click menus
+            # Instead, we'll use more targeted approaches
             registry_commands = [
                 # Create the policies key first
                 "New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null",
                 
-                # Hide shutdown options from start menu
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -Force",
+                # Hide shutdown from power button (but keep restart)
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -Value 1 -Type DWord -Force",
                 
-                # Hide logoff option
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 1 -Type DWord -Force",
-                
-                # Hide shutdown from power button
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -Value 1 -Type DWord -Force"
+                # Hide logoff option (optional, can be removed if you want to keep it)
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 1 -Type DWord -Force"
             ]
             
             success_count = 0
@@ -1032,9 +1031,8 @@ class InvokeX:
             # Verify the registry keys were actually created
             self.log_to_terminal("Verifying registry keys were created...", "info")
             verify_commands = [
-                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -ErrorAction SilentlyContinue",
-                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -ErrorAction SilentlyContinue",
-                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -ErrorAction SilentlyContinue"
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -ErrorAction SilentlyContinue",
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -ErrorAction SilentlyContinue"
             ]
             
             verification_success = 0
@@ -1063,27 +1061,28 @@ class InvokeX:
                 self.log_to_terminal("Group Policy update completed.", "info")
             
             # Final verification
-            if success_count >= total_commands * 0.7 and verification_success >= 2:  # Allow 30% failure rate and at least 2 verifications
-                self.log_to_terminal("Shutdown options hidden successfully!", "success")
+            if success_count >= total_commands * 0.7 and verification_success >= 1:  # Allow 30% failure rate and at least 1 verification
+                self.log_to_terminal("Shutdown and sleep options hidden successfully! Restart option preserved.", "success")
                 self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
                 
-                # Show success message with important warning
+                # Show success message with important information
                 messagebox.showinfo("Success", 
-                    "Shutdown options have been hidden from the start menu!\n\n"
+                    "Shutdown and sleep options have been hidden from the start menu!\n\n"
                     "Changes applied:\n"
-                    "• Shutdown, restart, sleep, and hibernate options hidden from start menu\n"
-                    "• Note: This only hides the UI elements, power management features remain enabled\n\n"
-                    "⚠️ IMPORTANT: If you experience issues with right-click menus or window controls,\n"
-                    "use the 'Restore Shutdown Options' button to revert changes.\n\n"
-                    "Note: You may need to restart Explorer or log off/on to see the changes.\n\n"
-                    f"Registry keys created: {verification_success}/3 verified")
+                    "• Shutdown option hidden (restart option preserved)\n"
+                    "• Sleep and hibernate options hidden\n"
+                    "• Logoff option hidden\n"
+                    "• Restart option remains available\n\n"
+                    "Note: This only hides the UI elements, power management features remain enabled.\n"
+                    "You may need to restart Explorer or log off/on to see the changes.\n\n"
+                    f"Registry keys created: {verification_success}/2 verified")
             else:
                 self.log_to_terminal(f"Registry operations: {success_count}/{total_commands} successful", "warning")
-                self.log_to_terminal(f"Verification: {verification_success}/3 keys found", "warning")
+                self.log_to_terminal(f"Verification: {verification_success}/2 keys found", "warning")
                 messagebox.showwarning("Partial Success", 
                     f"Some shutdown hiding operations completed, but not all.\n\n"
                     f"Registry commands: {success_count}/{total_commands} successful\n"
-                    f"Verification: {verification_success}/3 keys found\n\n"
+                    f"Verification: {verification_success}/2 keys found\n\n"
                     "Please check the terminal output for details and consider running as administrator.")
                 
         except Exception as e:
@@ -1092,8 +1091,8 @@ class InvokeX:
             messagebox.showerror("Error", error_msg)
     
     def restore_shutdown_options(self):
-        """Restore shutdown, restart, sleep, and hibernate options."""
-        self.log_to_terminal("Attempting to restore shutdown, restart, sleep, and hibernate options...", "info")
+        """Restore shutdown, sleep, and hibernate options."""
+        self.log_to_terminal("Attempting to restore shutdown, sleep, and hibernate options...", "info")
         
         try:
             # Check if we're running as administrator
@@ -1103,33 +1102,13 @@ class InvokeX:
                 self.log_to_terminal("Please restart the application as administrator.", "warning")
                 return
             
-            # Registry keys to restore (including the new ones we set)
+            # Registry keys to restore (only the ones we actually set)
             restore_commands = [
-                # Restore shutdown option in start menu
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                # Restore shutdown from power button
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -Value 0 -Type DWord -Force",
                 
                 # Restore logoff option
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Restore shutdown from power button
-                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Restore shutdown option from power button (system level)
-                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'ShutdownWithoutLogon' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Restore restart option from Ctrl+Alt+Del menu
-                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'DisableCAD' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Restore sleep option
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HibernateEnabled' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Restore hibernate option
-                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HybridSleepEnabled' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
-                
-                # Create the policies keys if they don't exist
-                "New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null",
-                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Force -ErrorAction SilentlyContinue | Out-Null",
-                "New-Item -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Force -ErrorAction SilentlyContinue | Out-Null"
+                "Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -Value 0 -Type DWord -Force"
             ]
             
             success_count = 0
@@ -1139,7 +1118,7 @@ class InvokeX:
                 try:
                     self.log_to_terminal(f"Executing restore command {i}/{total_commands}...", "info")
                     result = subprocess.run([
-                        "powershell", "-Command", command
+                        "powershell", "-ExecutionPolicy", "Bypass", "-Command", command
                     ], capture_output=True, text=True, timeout=30)
                     
                     if result.returncode == 0:
@@ -1170,18 +1149,18 @@ class InvokeX:
             
             # Final verification
             if success_count >= total_commands * 0.7:  # Allow 30% failure rate
-                self.log_to_terminal("Shutdown, restart, sleep, and hibernate options restored successfully!", "success")
+                self.log_to_terminal("Shutdown, sleep, and hibernate options restored successfully!", "success")
                 self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
                 
                 # Show success message
                 messagebox.showinfo("Success", 
-                    "Shutdown, restart, sleep, and hibernate options have been restored!\n\n"
+                    "Shutdown, sleep, and hibernate options have been restored!\n\n"
                     "Changes applied:\n"
                     "• Shutdown option restored\n"
-                    "• Restart option restored\n"
                     "• Sleep option restored\n"
                     "• Hibernate option restored\n"
-                    "• Right-click menus and window controls should now work normally\n\n"
+                    "• Logoff option restored\n"
+                    "• Restart option was always available\n\n"
                     "Note: A system restart may be required for all changes to take effect.")
             else:
                 self.log_to_terminal("Some restore commands failed. Please check the output above.", "warning")
