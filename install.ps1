@@ -14,19 +14,19 @@ InvokeX - PowerShell Installer
 Usage: irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex
 
 Options:
-    -Force    Force installation even if Python is not found
+    -Force    Force reinstallation even if InvokeX is already installed
     -Help     Show this help message
 
 This installer will:
 1. Check if Python is installed
-2. Download the InvokeX GUI application files
-3. Install to C:\Tools\InvokeX
-4. Create desktop shortcut with custom icon
-5. Set up start menu integration
+2. Install Python automatically if needed
+3. Download the InvokeX GUI application files
+4. Install to C:\Tools\InvokeX
+5. Create desktop shortcut with custom icon
+6. Set up start menu integration
 
 Requirements:
 - Windows 10/11
-- Python 3.6+ (will be detected automatically)
 - Internet connection for download
 - Administrator privileges (recommended)
 "@
@@ -65,7 +65,7 @@ function Test-PythonInstalled {
 }
 
 function Install-Python {
-    Write-Host "Python not found. Installing Python..." -ForegroundColor Yellow
+    Write-Host "Python not found. Installing Python automatically..." -ForegroundColor Yellow
     
     try {
         # Download Python installer
@@ -75,11 +75,14 @@ function Install-Python {
         Write-Host "Downloading Python installer..." -ForegroundColor Yellow
         Invoke-WebRequest -Uri $pythonUrl -OutFile $installerPath
         
-        Write-Host "Installing Python..." -ForegroundColor Yellow
+        Write-Host "Installing Python (this may take a few minutes)..." -ForegroundColor Yellow
         Start-Process -FilePath $installerPath -ArgumentList "/quiet", "InstallAllUsers=1", "PrependPath=1" -Wait
         
         # Refresh environment variables
         $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+        
+        # Wait a moment for installation to complete
+        Start-Sleep -Seconds 5
         
         # Verify installation
         if (Test-PythonInstalled) {
@@ -241,17 +244,12 @@ function Test-Requirements {
         return $false
     }
     
-    # Check Python
+    # Check Python - automatically install if not found
     if (!(Test-PythonInstalled)) {
-        if ($Force) {
-            Write-Host "Python not found. Attempting to install..." -ForegroundColor Yellow
-            if (!(Install-Python)) {
-                Write-Host "✗ Python installation failed" -ForegroundColor Red
-                return $false
-            }
-        } else {
-            Write-Host "✗ Python not found. Use -Force to install automatically" -ForegroundColor Red
-            Write-Host "Or install Python manually from: https://www.python.org/downloads/" -ForegroundColor Yellow
+        Write-Host "Python not found. Installing automatically..." -ForegroundColor Yellow
+        if (!(Install-Python)) {
+            Write-Host "✗ Python installation failed" -ForegroundColor Red
+            Write-Host "Please install Python manually from: https://www.python.org/downloads/" -ForegroundColor Yellow
             return $false
         }
     }
@@ -312,7 +310,7 @@ Write-Host @"
 
 "@ -ForegroundColor Cyan
 
-# Check requirements
+# Check requirements (Python will be installed automatically if needed)
 if (!(Test-Requirements)) {
     Write-Host "`nInstallation failed. Please resolve the issues above and try again." -ForegroundColor Red
     exit 1

@@ -9,6 +9,13 @@ A modern, user-friendly GUI application for installing popular Windows applicati
 irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex
 ```
 
+**That's it!** The installer automatically handles everything:
+- ✅ **Python detection** and automatic installation
+- ✅ **File downloads** from GitHub
+- ✅ **Installation** to `C:\Tools\InvokeX`
+- ✅ **Desktop shortcut** with custom icon
+- ✅ **Start menu integration**
+
 ### Manual Installation
 1. Clone this repository
 2. Ensure Python 3.6+ is installed
@@ -36,6 +43,7 @@ irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex
 
 ### 🛡️ **Smart Features**
 - **Automatic Python detection** - Finds Python installations automatically
+- **Automatic Python installation** - Installs Python if not found
 - **Admin privilege management** - Detects and offers to restart with elevated rights
 - **Comprehensive logging** - All operations logged to files and terminal
 - **Error handling** - Graceful fallbacks and user-friendly error messages
@@ -44,9 +52,9 @@ irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex
 ## 📋 Requirements
 
 - **Windows 10/11**
-- **Python 3.6+** (automatically detected/installed)
 - **Internet connection** (for downloads and installations)
 - **Administrator privileges** (recommended for some operations)
+- **Python 3.6+** (automatically installed if not found)
 
 ## 🚀 Installation Methods
 
@@ -56,13 +64,13 @@ irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex
 ```
 
 This will:
-- ✅ Check if Python is installed
-- ✅ Install Python automatically if needed
-- ✅ Download all application files
-- ✅ Install to `C:\Tools\InvokeX`
-- ✅ Create desktop shortcut with custom icon
-- ✅ Set up start menu integration
-- ✅ Create uninstaller
+- ✅ **Automatically detect** if Python is installed
+- ✅ **Install Python automatically** if needed (no manual intervention)
+- ✅ **Download all application files** from GitHub
+- ✅ **Install to `C:\Tools\InvokeX`**
+- ✅ **Create desktop shortcut** with custom icon
+- ✅ **Set up start menu integration**
+- ✅ **Create uninstaller**
 
 ### Method 2: Manual Installation
 ```bash
@@ -115,7 +123,7 @@ run_installer.bat
 # Show help
 irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex -Help
 
-# Force Python installation
+# Force reinstallation (if already installed)
 irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex -Force
 ```
 
@@ -156,10 +164,11 @@ powershell -ExecutionPolicy Bypass -File "C:\Tools\InvokeX\uninstall.ps1"
 
 ### Common Issues
 
-#### Python Not Found
-- The installer will automatically detect and install Python
-- Use `-Force` flag to force Python installation
-- Ensure Python is added to PATH during installation
+#### Python Installation Fails
+- The installer automatically attempts Python installation
+- If it fails, check your internet connection and try again
+- Ensure Windows Defender/antivirus isn't blocking downloads
+- Try running as Administrator
 
 #### Permission Errors
 - Run as Administrator for best results
@@ -177,7 +186,7 @@ powershell -ExecutionPolicy Bypass -File "C:\Tools\InvokeX\uninstall.ps1"
 
 ### Log Files
 All operations are logged to timestamped files in the `logs/` directory:
-- `installer_YYYYMMDD_HHMMSS.log` - Application logs
+- `invokex_YYYYMMDD_HHMMSS.log` - Application logs
 - Terminal output shows real-time status
 
 ## 🤝 Contributing
