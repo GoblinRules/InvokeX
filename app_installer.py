@@ -423,8 +423,37 @@ class InvokeX:
                                       capture_output=True, text=True, timeout=10)
                 return "RUNNING" in result.stdout or "STOPPED" in result.stdout
             elif app_name == "IP Python Tray App":
-                # Check if the tray app executable exists
-                return os.path.exists(os.path.expanduser("~\\AppData\\Local\\ippy-tray-app"))
+                # Check multiple possible locations for the tray app
+                locations = [
+                    os.path.expanduser("~\\AppData\\Local\\ippy-tray-app"),
+                    os.path.expanduser("~\\AppData\\Roaming\\ippy-tray-app"),
+                    "C:\\Tools\\ippy-tray-app"
+                ]
+                return any(os.path.exists(loc) for loc in locations)
+            elif app_name == "Tailscale":
+                # Check if Tailscale is installed
+                locations = [
+                    "C:\\Program Files\\Tailscale\\tailscale.exe",
+                    "C:\\Program Files (x86)\\Tailscale\\tailscale.exe",
+                    os.path.expanduser("~\\AppData\\Local\\Tailscale\\tailscale.exe")
+                ]
+                return any(os.path.exists(loc) for loc in locations)
+            elif app_name == "MuMu":
+                # Check if MuMu is installed
+                locations = [
+                    "C:\\Program Files\\Netease\\MuMu Player 12",
+                    "C:\\Program Files (x86)\\Netease\\MuMu Player 12",
+                    "C:\\Program Files\\MuMu Player 12",
+                    "C:\\Program Files (x86)\\MuMu Player 12"
+                ]
+                return any(os.path.exists(loc) for loc in locations)
+            elif app_name == "MASS":
+                # Check if Windows is activated (MASS purpose)
+                try:
+                    result = subprocess.run(['slmgr', '/xpr'], capture_output=True, text=True, timeout=10)
+                    return "permanently activated" in result.stdout.lower()
+                except:
+                    return False
             else:
                 return False
         except:
@@ -1023,17 +1052,11 @@ class InvokeX:
                 # Create the policies key first with proper error handling
                 "if (!(Test-Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer')) { New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force | Out-Null }",
                 
-                # Hide shutdown from power button (but keep restart) - use reg add for better compatibility
-                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoShutdown /t REG_DWORD /d 1 /f",
+                # Hide shutdown from start menu using Group Policy settings
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoClose /t REG_DWORD /d 1 /f",
                 
-                # Hide logoff option 
-                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoLogoff /t REG_DWORD /d 1 /f",
-                
-                # Hide sleep and hibernate from start menu
-                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoSleep /t REG_DWORD /d 1 /f",
-                
-                # Hide hibernate from start menu
-                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' /v NoHibernate /t REG_DWORD /d 1 /f"
+                # Alternative approach: Hide specific power options
+                "reg add 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced' /v Start_PowerButtonAction /t REG_DWORD /d 0 /f"
             ]
             
             success_count = 0
@@ -1082,10 +1105,8 @@ class InvokeX:
             # Verify the registry keys were actually created
             self.log_to_terminal("Verifying registry keys were created...", "info")
             verify_commands = [
-                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoShutdown' -ErrorAction SilentlyContinue",
-                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoLogoff' -ErrorAction SilentlyContinue",
-                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoSleep' -ErrorAction SilentlyContinue",
-                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoHibernate' -ErrorAction SilentlyContinue"
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -ErrorAction SilentlyContinue",
+                "Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced' -Name 'Start_PowerButtonAction' -ErrorAction SilentlyContinue"
             ]
             
             verification_success = 0
@@ -1114,7 +1135,7 @@ class InvokeX:
                 self.log_to_terminal("Group Policy update completed.", "info")
             
             # Final verification
-            if success_count >= total_commands * 0.7 and verification_success >= 2:  # Allow 30% failure rate and at least 2 verifications
+            if success_count >= total_commands * 0.7 and verification_success >= 1:  # Allow 30% failure rate and at least 1 verification
                 self.log_to_terminal("Shutdown, sleep, and hibernate options hidden successfully! Restart option preserved.", "success")
                 self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
                 
@@ -1129,14 +1150,14 @@ class InvokeX:
                     "• Restart option remains available\n\n"
                     "Note: This only hides the UI elements, power management features remain enabled.\n"
                     "You may need to restart Explorer or log off/on to see the changes.\n\n"
-                    f"Registry keys created: {verification_success}/4 verified")
+                    f"Registry keys created: {verification_success}/2 verified")
             else:
                 self.log_to_terminal(f"Registry operations: {success_count}/{total_commands} successful", "warning")
-                self.log_to_terminal(f"Verification: {verification_success}/4 keys found", "warning")
+                self.log_to_terminal(f"Verification: {verification_success}/2 keys found", "warning")
                 messagebox.showwarning("Partial Success", 
                     f"Some shutdown hiding operations completed, but not all.\n\n"
                     f"Registry commands: {success_count}/{total_commands} successful\n"
-                    f"Verification: {verification_success}/4 keys found\n\n"
+                    f"Verification: {verification_success}/2 keys found\n\n"
                     "Please check the terminal output for details and consider running as administrator.")
                 
         except Exception as e:
@@ -1464,6 +1485,19 @@ class InvokeX:
             filename = f"{app_name.lower().replace(' ', '_')}_setup.exe"
             
             self.log_to_terminal(f"Downloading {app_name} installer...", "INFO")
+            
+            # Handle SSL certificate issues for some sites
+            import ssl
+            if "ninite.com" in url.lower():
+                # Create SSL context that doesn't verify certificates for Ninite
+                ssl_context = ssl.create_default_context()
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+                
+                import urllib.request
+                opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_context))
+                urllib.request.install_opener(opener)
+            
             urllib.request.urlretrieve(url, filename)
             self.log_to_terminal(f"{app_name} installer downloaded: {filename}", "SUCCESS")
             
@@ -1478,9 +1512,11 @@ class InvokeX:
                 else:
                     install_cmd = f'Start-Process -FilePath "{filename}" -Verb RunAs -Wait'
                     
+                # Reduce timeout and add better error handling to prevent freezing
+                timeout_seconds = 120 if "mumu" in app_name.lower() else 300
                 result = subprocess.run([
                     "powershell", "-ExecutionPolicy", "Bypass", "-Command", install_cmd
-                ], capture_output=True, text=True, timeout=300)
+                ], capture_output=True, text=True, timeout=timeout_seconds)
                 
                 if result.returncode == 0:
                     self.log_to_terminal(f"{app_name} installed successfully!", "SUCCESS")
@@ -1488,7 +1524,7 @@ class InvokeX:
                 else:
                     # If elevated install fails, try normal install
                     self.log_to_terminal(f"Elevated install failed, trying normal install...", "WARNING")
-                    result2 = subprocess.run([filename], capture_output=True, text=True, timeout=300)
+                    result2 = subprocess.run([filename], capture_output=True, text=True, timeout=timeout_seconds)
                     
                     if result2.returncode == 0:
                         self.log_to_terminal(f"{app_name} installed successfully with normal privileges!", "SUCCESS")
@@ -1615,11 +1651,23 @@ class InvokeX:
             
             # Alternative method using Windows default programs
             try:
-                self.log_to_terminal("Attempting alternative method using Windows default programs...", "info")
+                self.log_to_terminal("Opening Windows default programs settings for manual configuration...", "info")
                 subprocess.run([
                     "cmd", "/c", "start", "ms-settings:defaultapps"
                 ], capture_output=True, timeout=30)
                 self.log_to_terminal("Windows default programs settings opened.", "info")
+                
+                # Show user instructions
+                messagebox.showinfo("Manual Setup Required", 
+                    "Windows protects default browser settings.\n\n"
+                    "The Settings app has been opened for you.\n\n"
+                    "To set Chrome as default:\n"
+                    "1. Scroll down to 'Web browser'\n"
+                    "2. Click the current browser\n"
+                    "3. Select 'Google Chrome'\n"
+                    "4. Close the Settings app\n\n"
+                    "This is the most reliable method in Windows 10/11.")
+                
             except:
                 self.log_to_terminal("Could not open Windows default programs settings.", "warning")
             
