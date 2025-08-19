@@ -37,8 +37,8 @@ class InvokeX:
         """
         self.root = root
         self.root.title("InvokeX - Application & Tweak Installer")
-        self.root.geometry("900x700")
-        self.root.configure(bg='#f0f0f0')
+        self.root.geometry("1000x750")
+        self.root.configure(bg='#f8f9fa')
         
         # Set window icon if available
         self.set_window_icon()
@@ -52,9 +52,9 @@ class InvokeX:
         # Style configuration
         self.setup_styles()
         
-        # Create main container with proper weight configuration
-        main_container = tk.Frame(root, bg='#f0f0f0')
-        main_container.pack(fill='both', expand=True, padx=15, pady=15)
+        # Create main container with modern styling
+        main_container = tk.Frame(root, bg='#f8f9fa')
+        main_container.pack(fill='both', expand=True, padx=20, pady=20)
         main_container.grid_rowconfigure(0, weight=1)
         main_container.grid_columnconfigure(0, weight=1)
         
@@ -303,20 +303,20 @@ class InvokeX:
         
         # Title
         title_label = tk.Label(apps_frame, text="Application Installer", 
-                              font=('Segoe UI', 14, 'bold'), 
-                              bg='#f0f0f0', fg='#2c3e50')
-        title_label.grid(row=0, column=0, pady=(15, 20), sticky='w')
+                              font=('Segoe UI', 16, 'bold'), 
+                              bg='#f8f9fa', fg='#2c3e50')
+        title_label.grid(row=0, column=0, pady=(20, 10), sticky='w', padx=20)
         
         # Create scrollable canvas for apps
-        canvas_frame = tk.Frame(apps_frame, bg='#f0f0f0')
-        canvas_frame.grid(row=1, column=0, sticky='nsew', padx=(0, 5))
+        canvas_frame = tk.Frame(apps_frame, bg='#f8f9fa')
+        canvas_frame.grid(row=1, column=0, sticky='nsew', padx=10, pady=(0, 10))
         canvas_frame.grid_columnconfigure(0, weight=1)
         canvas_frame.grid_rowconfigure(0, weight=1)
         
-        # Canvas and scrollbar
-        canvas = tk.Canvas(canvas_frame, bg='#f0f0f0', highlightthickness=0)
+        # Canvas and scrollbar with modern styling
+        canvas = tk.Canvas(canvas_frame, bg='#f8f9fa', highlightthickness=0, bd=0)
         scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg='#f0f0f0')
+        scrollable_frame = tk.Frame(canvas, bg='#f8f9fa')
         
         scrollable_frame.bind(
             "<Configure>",
@@ -326,8 +326,8 @@ class InvokeX:
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         
-        # Apps container
-        apps_container = tk.Frame(scrollable_frame, bg='#f0f0f0')
+        # Apps container with modern styling
+        apps_container = tk.Frame(scrollable_frame, bg='#f8f9fa')
         apps_container.pack(fill='both', expand=True, padx=15)
         
         # App 1: PyAutoClicker
@@ -351,12 +351,12 @@ class InvokeX:
                                              "PowerEventProvider", 
                                              "Power management event provider",
                                              "Download & Install",
-                                             "View Power Logs",
                                              "GitHub",
+                                             "View Power Logs",
                                              "https://github.com/GoblinRules/powereventprovider",
                                              lambda: self.download_and_install_msi("https://github.com/GoblinRules/powereventprovider/releases/download/V1.1/PowerEventProviderSetup.msi"),
-                                             lambda: self.view_power_logs(),
-                                             lambda: webbrowser.open("https://github.com/GoblinRules/powereventprovider"))
+                                             lambda: webbrowser.open("https://github.com/GoblinRules/powereventprovider"),
+                                             lambda: self.view_power_logs())
         
         # App 4: CTT WinUtil
         self.create_app_section(apps_container, 
@@ -424,41 +424,60 @@ class InvokeX:
         apps_container.bind('<Leave>', _unbind_mousewheel)
     
     def create_tweaks_tab(self):
-        """Create the System Tweaks tab with 3-button layout."""
+        """Create the System Tweaks tab with modern scrollable 3-button layout."""
         tweaks_frame = ttk.Frame(self.notebook)
         self.notebook.add(tweaks_frame, text="Tweaks")
         
         # Configure grid weights for auto-scaling
         tweaks_frame.grid_columnconfigure(0, weight=1)
-        tweaks_frame.grid_rowconfigure(1, weight=1)
+        tweaks_frame.grid_rowconfigure(2, weight=1)
         
         # Title
         title_label = tk.Label(tweaks_frame, text="System Tweaks", 
-                              font=('Segoe UI', 14, 'bold'), 
-                              bg='#f0f0f0', fg='#2c3e50')
-        title_label.grid(row=0, column=0, pady=(15, 20), sticky='w')
+                              font=('Segoe UI', 16, 'bold'), 
+                              bg='#f8f9fa', fg='#2c3e50')
+        title_label.grid(row=0, column=0, pady=(20, 10), sticky='w', padx=20)
         
         # Detect Windows version
         windows_version = self.get_windows_version()
         version_label = tk.Label(tweaks_frame, text=f"Detected: {windows_version}", 
                                 font=('Segoe UI', 10), 
-                                bg='#f0f0f0', fg='#7f8c8d')
-        version_label.grid(row=0, column=0, pady=(45, 0), sticky='w')
+                                bg='#f8f9fa', fg='#6c757d')
+        version_label.grid(row=1, column=0, pady=(0, 15), sticky='w', padx=20)
         
-        # Create main container for tweaks (no scrolling for now to debug)
-        tweaks_container = tk.Frame(tweaks_frame, bg='#f0f0f0')
-        tweaks_container.grid(row=1, column=0, sticky='nsew', padx=15, pady=10)
+        # Create scrollable canvas for tweaks
+        canvas_frame = tk.Frame(tweaks_frame, bg='#f8f9fa')
+        canvas_frame.grid(row=2, column=0, sticky='nsew', padx=10, pady=(0, 10))
+        canvas_frame.grid_columnconfigure(0, weight=1)
+        canvas_frame.grid_rowconfigure(0, weight=1)
         
-        # Tweak 1: Hide Shutdown Options
+        # Canvas and scrollbar with modern styling
+        canvas = tk.Canvas(canvas_frame, bg='#f8f9fa', highlightthickness=0, bd=0)
+        scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg='#f8f9fa')
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Tweaks container with modern styling
+        tweaks_container = tk.Frame(scrollable_frame, bg='#f8f9fa')
+        tweaks_container.pack(fill='both', expand=True, padx=15)
+        
+        # Tweak 1: Hide Shutdown Options (GPO-based, no registry check needed)
         self.create_single_tweak_with_3_buttons(tweaks_container,
                                                "Hide Shutdown Options",
-                                               "Hide shutdown, sleep, and hibernate options from start menu (restart option preserved)",
+                                               "Hide shutdown, sleep, and hibernate options from start menu using Group Policy",
                                                "Hide Options",
                                                "Restore Defaults", 
-                                               "Check Reg Keys",
+                                               "View Status",
                                                lambda: self.remove_shutdown_from_startup_smart(),
                                                lambda: self.restore_shutdown_options(),
-                                               lambda: self.check_registry_keys_for_tweak("Hide Shutdown Options"))
+                                               lambda: self.check_gpo_status())
         
         # Tweak 2: Set Chrome As Default Browser
         self.create_single_tweak_with_3_buttons(tweaks_container,
@@ -466,7 +485,7 @@ class InvokeX:
                                                "Set Google Chrome as default browser",
                                                "Set Chrome Default",
                                                "Restore Defaults",
-                                               "Check Reg Keys", 
+                                               "Check Registry", 
                                                lambda: self.set_chrome_as_default(),
                                                lambda: self.reset_default_browser(),
                                                lambda: self.check_registry_keys_for_tweak("Set Chrome As Default Browser"))
@@ -477,7 +496,7 @@ class InvokeX:
                                                "Configure power settings (sleep/hibernate to never, lid close to do nothing)",
                                                "Configure Power",
                                                "Restore Defaults",
-                                               "Check Reg Keys",
+                                               "Check Registry",
                                                lambda: self.configure_power_management(),
                                                lambda: self.reset_power_management(),
                                                lambda: self.check_registry_keys_for_tweak("Power Management Settings"))
@@ -492,67 +511,130 @@ class InvokeX:
                                                lambda: self.restart_system_10s(),
                                                lambda: self.shutdown_system(),
                                                lambda: self.cancel_power_action())
+        
+        # Tweak 5: Prevent User Account Creation
+        self.create_single_tweak_with_3_buttons(tweaks_container,
+                                               "Prevent User Account Creation",
+                                               "Prevent any more user accounts from being created on this system",
+                                               "Enable Protection",
+                                               "Restore Defaults",
+                                               "Check Status",
+                                               lambda: self.prevent_user_creation(),
+                                               lambda: self.restore_user_creation(),
+                                               lambda: self.check_user_creation_status())
+        
+        # Tweak 6: Create Admin Account
+        self.create_single_tweak_with_3_buttons(tweaks_container,
+                                               "Create Admin Account",
+                                               "Create account called 'Admin' that is a member of Administrators & Remote Desktop Users",
+                                               "Create Account",
+                                               "Remove Account",
+                                               "Check Status",
+                                               lambda: self.create_admin_account(),
+                                               lambda: self.remove_admin_account(),
+                                               lambda: self.check_admin_account_status())
+        
+        # Tweak 7: Enable Remote Desktop
+        self.create_single_tweak_with_3_buttons(tweaks_container,
+                                               "Enable Remote Desktop Connections",
+                                               "Enable Remote Desktop connections and configure firewall rules",
+                                               "Enable RDP",
+                                               "Disable RDP",
+                                               "Check Status",
+                                               lambda: self.enable_remote_desktop(),
+                                               lambda: self.disable_remote_desktop(),
+                                               lambda: self.check_rdp_status())
+        
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Modern mouse wheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        def _bind_mousewheel(event):
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        def _unbind_mousewheel(event):
+            canvas.unbind_all("<MouseWheel>")
+        
+        # Bind mouse wheel events
+        canvas.bind('<Enter>', _bind_mousewheel)
+        canvas.bind('<Leave>', _unbind_mousewheel)
+        scrollable_frame.bind('<Enter>', _bind_mousewheel)
+        scrollable_frame.bind('<Leave>', _unbind_mousewheel)
+        tweaks_container.bind('<Enter>', _bind_mousewheel)
+        tweaks_container.bind('<Leave>', _unbind_mousewheel)
     
     def create_single_tweak_with_3_buttons(self, parent, title, description, btn1_text, btn2_text, btn3_text, btn1_func, btn2_func, btn3_func):
-        """Create a single tweak section with exactly 3 buttons side by side."""
-        # Container for this tweak
-        tweak_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
-        tweak_frame.pack(fill='x', pady=6, padx=8)
+        """Create a single tweak section with modern 3-button layout."""
+        # Container for this tweak with modern styling
+        tweak_frame = tk.Frame(parent, bg='#ffffff', relief='flat', bd=0)
+        tweak_frame.pack(fill='x', pady=8, padx=10)
         
-        # Tweak info
-        info_frame = tk.Frame(tweak_frame, bg='white')
-        info_frame.pack(fill='x', padx=12, pady=10)
+        # Add subtle shadow effect with border
+        shadow_frame = tk.Frame(parent, bg='#e9ecef', height=2)
+        shadow_frame.pack(fill='x', padx=12)
         
-        # Title
+        # Tweak info with better padding
+        info_frame = tk.Frame(tweak_frame, bg='#ffffff')
+        info_frame.pack(fill='x', padx=20, pady=15)
+        
+        # Title with modern typography
         title_label = tk.Label(info_frame, text=title, 
-                              font=('Segoe UI', 11, 'bold'), 
-                              bg='white', fg='#2c3e50', anchor='w')
+                              font=('Segoe UI', 12, 'bold'), 
+                              bg='#ffffff', fg='#212529', anchor='w')
         title_label.pack(anchor='w')
         
-        # Description
+        # Description with better spacing
         desc_label = tk.Label(info_frame, text=description, 
-                             font=('Segoe UI', 8), 
-                             bg='white', fg='#7f8c8d', anchor='w')
-        desc_label.pack(anchor='w', pady=(3, 0))
+                             font=('Segoe UI', 9), 
+                             bg='#ffffff', fg='#6c757d', anchor='w')
+        desc_label.pack(anchor='w', pady=(5, 0))
         
-        # Buttons frame
-        buttons_frame = tk.Frame(info_frame, bg='white')
-        buttons_frame.pack(fill='x', pady=(10, 0))
+        # Buttons frame with better spacing
+        buttons_frame = tk.Frame(info_frame, bg='#ffffff')
+        buttons_frame.pack(fill='x', pady=(15, 0))
         
-        # Button 1 (Action)
+        # Modern button styling
+        button_style = {
+            'font': ('Segoe UI', 9, 'bold'),
+            'relief': 'flat',
+            'padx': 20,
+            'pady': 8,
+            'cursor': 'hand2',
+            'bd': 0
+        }
+        
+        # Button 1 (Action) - Primary color
         btn1 = tk.Button(buttons_frame, text=btn1_text, 
                         command=btn1_func,
-                        bg='#e74c3c', fg='white',
-                        font=('Segoe UI', 8, 'bold'),
-                        relief='flat', padx=15, pady=5,
-                        cursor='hand2')
-        btn1.pack(side='left', padx=(0, 8))
+                        bg='#007bff', fg='white',
+                        **button_style)
+        btn1.pack(side='left', padx=(0, 10))
         
-        # Button 2 (Restore)
+        # Button 2 (Restore) - Success color
         btn2 = tk.Button(buttons_frame, text=btn2_text, 
                         command=btn2_func,
-                        bg='#27ae60', fg='white',
-                        font=('Segoe UI', 8, 'bold'),
-                        relief='flat', padx=15, pady=5,
-                        cursor='hand2')
-        btn2.pack(side='left', padx=(0, 8))
+                        bg='#28a745', fg='white',
+                        **button_style)
+        btn2.pack(side='left', padx=(0, 10))
         
-        # Button 3 (Check Registry)
+        # Button 3 (Check/Info) - Info color
         btn3 = tk.Button(buttons_frame, text=btn3_text, 
                         command=btn3_func,
-                        bg='#3498db', fg='white',
-                        font=('Segoe UI', 8, 'bold'),
-                        relief='flat', padx=15, pady=5,
-                        cursor='hand2')
+                        bg='#17a2b8', fg='white',
+                        **button_style)
         btn3.pack(side='left')
         
-        # Hover effects
-        btn1.bind('<Enter>', lambda e: btn1.configure(bg='#c0392b'))
-        btn1.bind('<Leave>', lambda e: btn1.configure(bg='#e74c3c'))
-        btn2.bind('<Enter>', lambda e: btn2.configure(bg='#229954'))
-        btn2.bind('<Leave>', lambda e: btn2.configure(bg='#27ae60'))
-        btn3.bind('<Enter>', lambda e: btn3.configure(bg='#2980b9'))
-        btn3.bind('<Leave>', lambda e: btn3.configure(bg='#3498db'))
+        # Modern hover effects
+        btn1.bind('<Enter>', lambda e: btn1.configure(bg='#0056b3'))
+        btn1.bind('<Leave>', lambda e: btn1.configure(bg='#007bff'))
+        btn2.bind('<Enter>', lambda e: btn2.configure(bg='#1e7e34'))
+        btn2.bind('<Leave>', lambda e: btn2.configure(bg='#28a745'))
+        btn3.bind('<Enter>', lambda e: btn3.configure(bg='#117a8b'))
+        btn3.bind('<Leave>', lambda e: btn3.configure(bg='#17a2b8'))
     
     def create_tweak_section(self, parent, title, description, action_text, restore_text, action_func, restore_func, has_registry=True):
         """
@@ -1922,34 +2004,89 @@ class InvokeX:
             except:
                 pass
             
-            # Text widget for logs
-            text_widget = tk.Text(log_window, wrap=tk.WORD, font=('Consolas', 9))
-            text_widget.pack(fill='both', expand=True, padx=10, pady=10)
+            # Header frame
+            header_frame = tk.Frame(log_window, bg='#ffffff', height=60)
+            header_frame.pack(fill='x', padx=0, pady=0)
+            header_frame.pack_propagate(False)
             
-            # Scrollbar
-            scrollbar = tk.Scrollbar(text_widget)
-            scrollbar.pack(side='right', fill='y')
-            text_widget.config(yscrollcommand=scrollbar.set)
-            scrollbar.config(command=text_widget.yview)
+            # Title in header
+            title_label = tk.Label(header_frame, text="PowerEventProvider Logs", 
+                                  font=('Segoe UI', 14, 'bold'), 
+                                  bg='#ffffff', fg='#212529')
+            title_label.pack(side='left', padx=20, pady=20)
             
-            # Get power logs
-            try:
-                self.log_to_terminal("Retrieving power logs...", "INFO")
-                result = subprocess.run(['powershell', '-Command', 'get-eventlog -logname Application -source PowerEventProvider'], 
-                                      capture_output=True, text=True, timeout=30)
-                if result.returncode == 0:
-                    text_widget.insert('1.0', result.stdout)
-                    self.log_to_terminal("Power logs retrieved successfully!", "SUCCESS")
-                else:
-                    error_text = f"Error: {result.stderr}\n\nNo PowerEventProvider logs found. Make sure PowerEventProvider is installed."
+            # Refresh button in header
+            refresh_btn = tk.Button(header_frame, text="🔄 Refresh", 
+                                   font=('Segoe UI', 9, 'bold'),
+                                   bg='#007bff', fg='white',
+                                   relief='flat', padx=15, pady=5,
+                                   cursor='hand2', bd=0)
+            refresh_btn.pack(side='right', padx=20, pady=20)
+            
+            # Main content frame
+            content_frame = tk.Frame(log_window, bg='#f8f9fa')
+            content_frame.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+            
+            # Text widget with modern styling
+            text_frame = tk.Frame(content_frame, bg='#ffffff', relief='flat', bd=1)
+            text_frame.pack(fill='both', expand=True)
+            
+            text_widget = tk.Text(text_frame, wrap=tk.WORD, 
+                                 font=('Consolas', 10),
+                                 bg='#ffffff', fg='#212529',
+                                 relief='flat', bd=0,
+                                 padx=15, pady=15)
+            
+            # Modern scrollbar
+            scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=text_widget.yview)
+            text_widget.configure(yscrollcommand=scrollbar.set)
+            
+            # Pack text widget and scrollbar
+            text_widget.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+            
+            # Function to load logs
+            def load_logs():
+                text_widget.config(state='normal')
+                text_widget.delete('1.0', tk.END)
+                text_widget.insert('1.0', "Loading PowerEventProvider logs...\n\n")
+                text_widget.update()
+                
+                try:
+                    self.log_to_terminal("Retrieving power logs...", "INFO")
+                    result = subprocess.run(['powershell', '-Command', 'get-eventlog -logname Application -source PowerEventProvider'], 
+                                          capture_output=True, text=True, timeout=30)
+                    
+                    text_widget.delete('1.0', tk.END)
+                    
+                    if result.returncode == 0:
+                        if result.stdout.strip():
+                            text_widget.insert('1.0', result.stdout)
+                            self.log_to_terminal("Power logs retrieved successfully!", "SUCCESS")
+                        else:
+                            text_widget.insert('1.0', "No PowerEventProvider logs found.\n\nThis could mean:\n• PowerEventProvider is not installed\n• No power events have been logged yet\n• The service is not running")
+                    else:
+                        error_text = f"Error retrieving logs:\n{result.stderr}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check if the service is running"
+                        text_widget.insert('1.0', error_text)
+                        self.log_to_terminal("PowerEventProvider logs not found", "WARNING")
+                        
+                except Exception as e:
+                    text_widget.delete('1.0', tk.END)
+                    error_text = f"Error retrieving logs: {str(e)}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check your PowerShell execution policy"
                     text_widget.insert('1.0', error_text)
-                    self.log_to_terminal("No PowerEventProvider logs found.", "WARNING")
-            except Exception as e:
-                error_text = f"Error retrieving logs: {str(e)}"
-                text_widget.insert('1.0', error_text)
-                self.log_to_terminal(f"Error retrieving logs: {str(e)}", "ERROR")
+                    self.log_to_terminal(f"Error retrieving power logs: {str(e)}", "ERROR")
+                
+                text_widget.config(state='disabled')
             
-            text_widget.config(state='disabled')
+            # Bind refresh button
+            refresh_btn.configure(command=load_logs)
+            
+            # Load logs initially
+            log_window.after(100, load_logs)
+            
+            # Modern button hover effects
+            refresh_btn.bind('<Enter>', lambda e: refresh_btn.configure(bg='#0056b3'))
+            refresh_btn.bind('<Leave>', lambda e: refresh_btn.configure(bg='#007bff'))
             
         except Exception as e:
             error_msg = f"Failed to open power logs: {str(e)}"
@@ -2504,6 +2641,298 @@ class InvokeX:
         except Exception as e:
             self.log_to_terminal(f"Failed to cancel power actions: {str(e)}", "error")
             messagebox.showerror("Cancel Failed", f"Failed to cancel power actions: {str(e)}")
+    
+    def check_gpo_status(self):
+        """Check Group Policy status for shutdown hiding."""
+        messagebox.showinfo("GPO Status", 
+            "Group Policy Status:\n\n"
+            "Hide Shutdown uses Group Policy Objects (GPO) instead of registry keys.\n"
+            "GPO settings are managed by Windows Policy Engine and are more reliable.\n\n"
+            "To check status:\n"
+            "• Open Group Policy Editor (gpedit.msc)\n"
+            "• Navigate to User Configuration > Administrative Templates > Start Menu and Taskbar\n"
+            "• Look for shutdown-related policies")
+    
+    def prevent_user_creation(self):
+        """Prevent any more user accounts from being created."""
+        self.log_to_terminal("Preventing user account creation...", "info")
+        
+        try:
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                messagebox.showwarning("Administrator Required", 
+                    "This operation requires administrator privileges.")
+                return
+            
+            # Set registry key to prevent user creation
+            cmd = 'reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v "NoNewUsers" /t REG_DWORD /d 1 /f'
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                self.log_to_terminal("User account creation prevention enabled", "success")
+                messagebox.showinfo("Success", "User account creation has been disabled!")
+            else:
+                self.log_to_terminal(f"Failed to prevent user creation: {result.stderr}", "error")
+                messagebox.showerror("Failed", f"Failed to prevent user creation: {result.stderr}")
+                
+        except Exception as e:
+            self.log_to_terminal(f"Error preventing user creation: {str(e)}", "error")
+            messagebox.showerror("Error", f"Error: {str(e)}")
+    
+    def restore_user_creation(self):
+        """Restore ability to create user accounts."""
+        self.log_to_terminal("Restoring user account creation...", "info")
+        
+        try:
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                messagebox.showwarning("Administrator Required", 
+                    "This operation requires administrator privileges.")
+                return
+            
+            # Remove registry key
+            cmd = 'reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v "NoNewUsers" /f'
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            
+            self.log_to_terminal("User account creation restored", "success")
+            messagebox.showinfo("Success", "User account creation has been restored!")
+                
+        except Exception as e:
+            self.log_to_terminal(f"Error restoring user creation: {str(e)}", "error")
+            messagebox.showerror("Error", f"Error: {str(e)}")
+    
+    def check_user_creation_status(self):
+        """Check if user creation is prevented."""
+        try:
+            cmd = 'reg query "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v "NoNewUsers"'
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                messagebox.showinfo("User Creation Status", "Status: User account creation is PREVENTED")
+            else:
+                messagebox.showinfo("User Creation Status", "Status: User account creation is ALLOWED")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Error checking status: {str(e)}")
+    
+    def create_admin_account(self):
+        """Create Admin account with Administrator and Remote Desktop Users privileges."""
+        self.log_to_terminal("Creating Admin account...", "info")
+        
+        try:
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                messagebox.showwarning("Administrator Required", 
+                    "This operation requires administrator privileges.")
+                return
+            
+            # Create user account
+            cmd1 = 'net user Admin /add'
+            result1 = subprocess.run(cmd1, shell=True, capture_output=True, text=True, timeout=30)
+            
+            if result1.returncode == 0:
+                self.log_to_terminal("Admin account created", "success")
+                
+                # Add to Administrators group
+                cmd2 = 'net localgroup Administrators Admin /add'
+                result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True, timeout=30)
+                
+                # Add to Remote Desktop Users group
+                cmd3 = 'net localgroup "Remote Desktop Users" Admin /add'
+                result3 = subprocess.run(cmd3, shell=True, capture_output=True, text=True, timeout=30)
+                
+                self.log_to_terminal("Admin account configured with privileges", "success")
+                messagebox.showinfo("Success", 
+                    "Admin account created successfully!\n\n"
+                    "Account: Admin\n"
+                    "Groups: Administrators, Remote Desktop Users\n\n"
+                    "Note: Please set a password for this account.")
+            else:
+                if "already exists" in result1.stderr.lower():
+                    messagebox.showinfo("Account Exists", "Admin account already exists!")
+                else:
+                    self.log_to_terminal(f"Failed to create Admin account: {result1.stderr}", "error")
+                    messagebox.showerror("Failed", f"Failed to create Admin account: {result1.stderr}")
+                
+        except Exception as e:
+            self.log_to_terminal(f"Error creating Admin account: {str(e)}", "error")
+            messagebox.showerror("Error", f"Error: {str(e)}")
+    
+    def remove_admin_account(self):
+        """Remove the Admin account."""
+        self.log_to_terminal("Removing Admin account...", "info")
+        
+        try:
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                messagebox.showwarning("Administrator Required", 
+                    "This operation requires administrator privileges.")
+                return
+            
+            # Confirm deletion
+            confirm = messagebox.askyesno("Confirm Deletion", 
+                "Are you sure you want to delete the Admin account?\n\n"
+                "This action cannot be undone.")
+            
+            if not confirm:
+                return
+            
+            # Delete user account
+            cmd = 'net user Admin /delete'
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                self.log_to_terminal("Admin account removed", "success")
+                messagebox.showinfo("Success", "Admin account has been removed!")
+            else:
+                if "not found" in result.stderr.lower():
+                    messagebox.showinfo("Account Not Found", "Admin account does not exist!")
+                else:
+                    self.log_to_terminal(f"Failed to remove Admin account: {result.stderr}", "error")
+                    messagebox.showerror("Failed", f"Failed to remove Admin account: {result.stderr}")
+                
+        except Exception as e:
+            self.log_to_terminal(f"Error removing Admin account: {str(e)}", "error")
+            messagebox.showerror("Error", f"Error: {str(e)}")
+    
+    def check_admin_account_status(self):
+        """Check if Admin account exists and its group memberships."""
+        try:
+            # Check if account exists
+            cmd = 'net user Admin'
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                # Account exists, check group memberships
+                status = "Admin account EXISTS\n\nGroup memberships:\n"
+                
+                # Check Administrators group
+                cmd_admin = 'net localgroup Administrators'
+                result_admin = subprocess.run(cmd_admin, shell=True, capture_output=True, text=True, timeout=10)
+                if "Admin" in result_admin.stdout:
+                    status += "✓ Administrators\n"
+                else:
+                    status += "✗ Administrators\n"
+                
+                # Check Remote Desktop Users group
+                cmd_rdp = 'net localgroup "Remote Desktop Users"'
+                result_rdp = subprocess.run(cmd_rdp, shell=True, capture_output=True, text=True, timeout=10)
+                if "Admin" in result_rdp.stdout:
+                    status += "✓ Remote Desktop Users\n"
+                else:
+                    status += "✗ Remote Desktop Users\n"
+                
+                messagebox.showinfo("Admin Account Status", status)
+            else:
+                messagebox.showinfo("Admin Account Status", "Admin account does NOT exist")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Error checking Admin account: {str(e)}")
+    
+    def enable_remote_desktop(self):
+        """Enable Remote Desktop connections."""
+        self.log_to_terminal("Enabling Remote Desktop...", "info")
+        
+        try:
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                messagebox.showwarning("Administrator Required", 
+                    "This operation requires administrator privileges.")
+                return
+            
+            success_count = 0
+            
+            # Enable Remote Desktop
+            cmd1 = 'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f'
+            result1 = subprocess.run(cmd1, shell=True, capture_output=True, text=True, timeout=30)
+            if result1.returncode == 0:
+                success_count += 1
+                self.log_to_terminal("Remote Desktop enabled", "success")
+            
+            # Enable Remote Desktop through firewall
+            cmd2 = 'netsh advfirewall firewall set rule group="Remote Desktop" new enable=yes'
+            result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True, timeout=30)
+            if result2.returncode == 0:
+                success_count += 1
+                self.log_to_terminal("Firewall rule enabled", "success")
+            
+            # Disable Network Level Authentication (optional, for compatibility)
+            cmd3 = 'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp" /v UserAuthentication /t REG_DWORD /d 0 /f'
+            result3 = subprocess.run(cmd3, shell=True, capture_output=True, text=True, timeout=30)
+            if result3.returncode == 0:
+                success_count += 1
+                self.log_to_terminal("Network Level Authentication disabled", "success")
+            
+            if success_count >= 2:
+                messagebox.showinfo("Success", 
+                    "Remote Desktop has been enabled!\n\n"
+                    "Settings applied:\n"
+                    "• Remote Desktop connections enabled\n"
+                    "• Firewall rules configured\n"
+                    "• Network Level Authentication disabled\n\n"
+                    "You can now connect to this computer remotely.")
+            else:
+                messagebox.showwarning("Partial Success", 
+                    "Remote Desktop partially enabled. Check terminal for details.")
+                
+        except Exception as e:
+            self.log_to_terminal(f"Error enabling Remote Desktop: {str(e)}", "error")
+            messagebox.showerror("Error", f"Error: {str(e)}")
+    
+    def disable_remote_desktop(self):
+        """Disable Remote Desktop connections."""
+        self.log_to_terminal("Disabling Remote Desktop...", "info")
+        
+        try:
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                messagebox.showwarning("Administrator Required", 
+                    "This operation requires administrator privileges.")
+                return
+            
+            # Disable Remote Desktop
+            cmd1 = 'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 1 /f'
+            result1 = subprocess.run(cmd1, shell=True, capture_output=True, text=True, timeout=30)
+            
+            # Disable firewall rule
+            cmd2 = 'netsh advfirewall firewall set rule group="Remote Desktop" new enable=no'
+            result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True, timeout=30)
+            
+            self.log_to_terminal("Remote Desktop disabled", "success")
+            messagebox.showinfo("Success", "Remote Desktop has been disabled!")
+                
+        except Exception as e:
+            self.log_to_terminal(f"Error disabling Remote Desktop: {str(e)}", "error")
+            messagebox.showerror("Error", f"Error: {str(e)}")
+    
+    def check_rdp_status(self):
+        """Check Remote Desktop status."""
+        try:
+            # Check if RDP is enabled
+            cmd = 'reg query "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server" /v fDenyTSConnections'
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                if "0x0" in result.stdout:
+                    status = "Remote Desktop is ENABLED"
+                else:
+                    status = "Remote Desktop is DISABLED"
+            else:
+                status = "Remote Desktop status unknown"
+            
+            # Check firewall status
+            cmd_fw = 'netsh advfirewall firewall show rule name="Remote Desktop - User Mode (TCP-In)"'
+            result_fw = subprocess.run(cmd_fw, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if "Enabled:                              Yes" in result_fw.stdout:
+                status += "\nFirewall: ENABLED"
+            else:
+                status += "\nFirewall: DISABLED"
+            
+            messagebox.showinfo("Remote Desktop Status", status)
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Error checking RDP status: {str(e)}")
 
 def main():
     """
