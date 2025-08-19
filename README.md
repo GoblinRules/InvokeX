@@ -16,6 +16,19 @@ irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex
 - ✅ **Desktop shortcut** with custom icon
 - ✅ **Start menu integration**
 
+### 🖥️ Fix for Older Windows Systems (pre-TLS 1.2)
+
+Run this first to enable TLS 1.2 and strong crypto:
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+```
+Then run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex"
+```
+
 ### Manual Installation
 1. Clone this repository
 2. Ensure Python 3.6+ is installed
@@ -218,3 +231,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 **Made with ❤️ by [GoblinRules](https://github.com/GoblinRules) for the Windows community**
+
