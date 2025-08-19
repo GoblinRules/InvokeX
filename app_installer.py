@@ -477,24 +477,59 @@ class InvokeX:
     def get_windows_version(self):
         """Get the current Windows version for user guidance."""
         try:
-            import ctypes
-            kernel32 = ctypes.windll.kernel32
-            kernel32.GetVersion.restype = ctypes.c_ulong
-            version = kernel32.GetVersion()
-            major = version >> 16 & 0xFF
-            minor = version >> 8 & 0xFF
+            # Method 1: Use platform module for more reliable Windows version detection
+            import platform
+            system_info = platform.uname()
             
-            if major == 10:
-                if minor >= 0:
+            if system_info.system == "Windows":
+                # Get Windows version from platform
+                version = system_info.version
+                release = system_info.release
+                
+                # Parse the version string
+                if "10." in version or "10." in release:
                     return "Windows 10"
+                elif "11." in version or "11." in release:
+                    return "Windows 11"
                 else:
-                    return "Windows 10"
-            elif major == 11:
-                return "Windows 11"
+                    return f"Windows {version}"
             else:
-                return f"Windows {major}.{minor}"
-        except:
-            return "Unknown Windows Version"
+                return "Not Windows"
+                
+        except Exception as e:
+            # Method 2: Fallback to ctypes method
+            try:
+                import ctypes
+                kernel32 = ctypes.windll.kernel32
+                kernel32.GetVersion.restype = ctypes.c_ulong
+                version = kernel32.GetVersion()
+                major = version >> 16 & 0xFF
+                minor = version >> 8 & 0xFF
+                
+                if major == 10:
+                    return "Windows 10"
+                elif major == 11:
+                    return "Windows 11"
+                else:
+                    return f"Windows {major}.{minor}"
+            except:
+                # Method 3: Try registry method as final fallback
+                try:
+                    import subprocess
+                    result = subprocess.run(['reg', 'query', 'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion', '/v', 'ProductName'], 
+                                          capture_output=True, text=True, timeout=10)
+                    if result.returncode == 0:
+                        output = result.stdout.lower()
+                        if 'windows 11' in output:
+                            return "Windows 11"
+                        elif 'windows 10' in output:
+                            return "Windows 10"
+                        else:
+                            return "Windows (Registry)"
+                    else:
+                        return "Unknown Windows Version"
+                except:
+                    return "Unknown Windows Version"
     
     def create_tweaks_tab(self):
         """Create the System Tweaks tab with scrollable content."""
