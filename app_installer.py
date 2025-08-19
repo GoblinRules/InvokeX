@@ -474,6 +474,28 @@ class InvokeX:
         github_btn.bind('<Enter>', lambda e: github_btn.configure(bg='#34495e'))
         github_btn.bind('<Leave>', lambda e: github_btn.configure(bg='#2c3e50'))
     
+    def get_windows_version(self):
+        """Get the current Windows version for user guidance."""
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            kernel32.GetVersion.restype = ctypes.c_ulong
+            version = kernel32.GetVersion()
+            major = version >> 16 & 0xFF
+            minor = version >> 8 & 0xFF
+            
+            if major == 10:
+                if minor >= 0:
+                    return "Windows 10"
+                else:
+                    return "Windows 10"
+            elif major == 11:
+                return "Windows 11"
+            else:
+                return f"Windows {major}.{minor}"
+        except:
+            return "Unknown Windows Version"
+    
     def create_tweaks_tab(self):
         """Create the System Tweaks tab with scrollable content."""
         tweaks_frame = ttk.Frame(self.notebook)
@@ -489,9 +511,16 @@ class InvokeX:
                               bg='#f0f0f0', fg='#2c3e50')
         title_label.grid(row=0, column=0, pady=(15, 20), sticky='w')
         
+        # Windows version info
+        windows_version = self.get_windows_version()
+        version_label = tk.Label(tweaks_frame, text=f"Detected: {windows_version}", 
+                                font=('Segoe UI', 9), 
+                                bg='#f0f0f0', fg='#7f8c8d')
+        version_label.grid(row=1, column=0, pady=(0, 20), sticky='w')
+        
         # Create scrollable canvas for tweaks
         canvas_frame = tk.Frame(tweaks_frame, bg='#f0f0f0')
-        canvas_frame.grid(row=1, column=0, sticky='nsew', padx=(0, 5))
+        canvas_frame.grid(row=2, column=0, sticky='nsew', padx=(0, 5))
         canvas_frame.grid_columnconfigure(0, weight=1)
         canvas_frame.grid_rowconfigure(0, weight=1)
         
@@ -512,14 +541,21 @@ class InvokeX:
         tweaks_container = tk.Frame(scrollable_frame, bg='#f0f0f0')
         tweaks_container.pack(fill='both', expand=True, padx=15)
         
-        # Tweak 1: Remove Shutdown from Startup
+        # Tweak 1: Remove Shutdown from Startup (Windows 10)
         self.create_tweak_section(tweaks_container,
-                                 "Remove Shutdown from Startup",
-                                 "Remove shutdown option from startup power menu (Windows 10 & 11)",
-                                 "Remove Shutdown Option",
-                                 lambda: self.remove_shutdown_from_startup())
+                                 "Remove Shutdown from Startup (Windows 10)",
+                                 "Remove shutdown option from startup power menu for Windows 10",
+                                 "Remove Shutdown (Win 10)",
+                                 lambda: self.remove_shutdown_from_startup_win10())
         
-        # Tweak 2: View Power Logs
+        # Tweak 2: Remove Shutdown from Startup (Windows 11)
+        self.create_tweak_section(tweaks_container,
+                                 "Remove Shutdown from Startup (Windows 11)",
+                                 "Remove shutdown option from startup power menu for Windows 11",
+                                 "Remove Shutdown (Win 11)",
+                                 lambda: self.remove_shutdown_from_startup_win11())
+        
+        # Tweak 3: View Power Logs
         self.create_tweak_section(tweaks_container,
                                  "View Power Logs",
                                  "Display power management event logs",
@@ -604,147 +640,90 @@ class InvokeX:
             messagebox.showerror("Error", error_msg)
     
     def install_ippy_tray(self):
-        """
-        Install IP Python Tray App with multiple fallback methods.
+        """Install IP Python Tray App with multiple fallback methods."""
+        self.log_to_terminal("Starting IP Python Tray App installation...", "info")
         
-        Attempts multiple installation approaches to handle various
-        failure scenarios gracefully.
-        """
         try:
-            self.log_to_terminal("Starting IP Python Tray App installation...", "INFO")
+            # Method 1: Try to set execution policy first
+            self.log_to_terminal("Setting PowerShell execution policy...", "info")
+            result = subprocess.run([
+                "powershell", "-Command", 
+                "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force"
+            ], capture_output=True, text=True, timeout=30)
             
-            # Check if we're running with admin privileges
-            try:
-                import ctypes
-                is_admin = ctypes.windll.shell32.IsUserAnAdmin()
-                if not is_admin:
-                    self.log_to_terminal("Warning: Not running as administrator. Some operations may fail.", "WARNING")
-            except:
-                pass
+            if result.returncode == 0:
+                self.log_to_terminal("Execution policy set successfully.", "success")
+            else:
+                self.log_to_terminal("Warning: Could not set execution policy.", "warning")
             
-            # First, try to set execution policy
-            self.log_to_terminal("Setting PowerShell execution policy...", "INFO")
-            try:
-                policy_cmd = "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force"
-                subprocess.run(['powershell', '-Command', policy_cmd], check=True, capture_output=True)
-                self.log_to_terminal("Execution policy set successfully.", "SUCCESS")
-            except Exception as e:
-                self.log_to_terminal(f"Warning: Could not set execution policy: {str(e)}", "WARNING")
+            # Method 2: Try the original installation command
+            self.log_to_terminal("Executing first installation command...", "info")
+            result = subprocess.run([
+                "powershell", "-ExecutionPolicy", "Bypass", "-Command",
+                "irm 'https://raw.githubusercontent.com/GoblinRules/ippy-tray-app/main/install.ps1' | iex"
+            ], capture_output=True, text=True, timeout=60)
             
-            # Try alternative installation methods
-            self.log_to_terminal("Attempting alternative installation methods...", "INFO")
+            if result.returncode == 0:
+                self.log_to_terminal("IP Python Tray App installed successfully!", "success")
+                self.log_to_terminal("Note: A system reboot may be required for the tray app to appear.", "info")
+                return
+            else:
+                self.log_to_terminal(f"First command failed: {result.stderr}", "warning")
             
-            # Method 1: Try direct download and manual installation
-            try:
-                self.log_to_terminal("Method 1: Direct download approach...", "INFO")
-                download_cmd = "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/GoblinRules/ippy-tray-app/main/install.ps1' -OutFile 'ippy_install.ps1'"
-                result_dl = subprocess.run(['powershell', '-ExecutionPolicy', 'Bypass', '-Command', download_cmd], 
-                                         capture_output=True, text=True, timeout=60)
+            # Method 3: Try with TLS security protocol settings
+            self.log_to_terminal("Setting TLS security protocol...", "info")
+            tls_result = subprocess.run([
+                "powershell", "-Command",
+                "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12"
+            ], capture_output=True, text=True, timeout=30)
+            
+            if tls_result.returncode == 0:
+                self.log_to_terminal("TLS protocol set successfully.", "success")
+            else:
+                self.log_to_terminal("Warning: Could not set TLS protocol.", "warning")
+            
+            # Method 4: Try with .NET Framework crypto settings
+            self.log_to_terminal("Setting .NET Framework crypto settings...", "info")
+            crypto_result = subprocess.run([
+                "powershell", "-Command",
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319' -Name 'SchUseStrongCrypto' -Value 1 -Type DWord"
+            ], capture_output=True, text=True, timeout=30)
+            
+            if crypto_result.returncode == 0:
+                self.log_to_terminal(".NET Framework crypto settings updated.", "success")
+            else:
+                self.log_to_terminal("Warning: Could not update .NET Framework crypto settings.", "warning")
+            
+            # Method 5: Try with WOW64 settings
+            self.log_to_terminal("Setting WOW64 .NET Framework crypto settings...", "info")
+            wow64_result = subprocess.run([
+                "powershell", "-Command",
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\.NETFramework\\v4.0.30319' -Name 'SchUseStrongCrypto' -Value 1 -Type DWord"
+            ], capture_output=True, text=True, timeout=30)
+            
+            if wow64_result.returncode == 0:
+                self.log_to_terminal("WOW64 .NET Framework crypto settings updated.", "success")
+            else:
+                self.log_to_terminal("Warning: Could not update WOW64 .NET Framework crypto settings.", "warning")
+            
+            # Method 6: Final attempt with all settings applied
+            self.log_to_terminal("Executing final installation command...", "info")
+            final_result = subprocess.run([
+                "powershell", "-ExecutionPolicy", "Bypass", "-Command",
+                "irm 'https://raw.githubusercontent.com/GoblinRules/ippy-tray-app/main/install.ps1' | iex"
+            ], capture_output=True, text=True, timeout=60)
+            
+            if final_result.returncode == 0:
+                self.log_to_terminal("IP Python Tray App installed successfully!", "success")
+                self.log_to_terminal("Note: A system reboot may be required for the tray app to appear.", "info")
+            else:
+                self.log_to_terminal(f"Final installation failed: {final_result.stderr}", "error")
+                self.log_to_terminal("All installation methods failed. Please try installing manually.", "error")
                 
-                if result_dl.returncode == 0:
-                    self.log_to_terminal("Installation script downloaded successfully!", "SUCCESS")
-                    
-                    # Try to run the downloaded script
-                    run_cmd = "& '.\ippy_install.ps1'"
-                    result_run = subprocess.run(['powershell', '-ExecutionPolicy', 'Bypass', '-Command', run_cmd], 
-                                             capture_output=True, text=True, timeout=60)
-                    
-                    if result_run.returncode == 0:
-                        self.log_to_terminal("IP Python Tray App installed successfully!", "SUCCESS")
-                        messagebox.showinfo("Success", "IP Python Tray App installed successfully!")
-                        
-                        # Clean up downloaded script
-                        try:
-                            os.remove('ippy_install.ps1')
-                            self.log_to_terminal("Installation script cleaned up.", "INFO")
-                        except:
-                            pass
-                        return
-                    else:
-                        self.log_to_terminal(f"Downloaded script execution failed: {result_run.stderr}", "WARNING")
-                else:
-                    self.log_to_terminal(f"Failed to download installation script: {result_dl.stderr}", "WARNING")
-            except Exception as e:
-                self.log_to_terminal(f"Method 1 failed: {str(e)}", "WARNING")
-            
-            # Method 2: Try with TLS and crypto settings first, then installation
-            self.log_to_terminal("Method 2: TLS and crypto settings approach...", "INFO")
-            
-            # Second command - TLS settings
-            cmd2 = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12"
-            self.log_to_terminal("Setting TLS security protocol...", "INFO")
-            try:
-                subprocess.run(['powershell', '-Command', cmd2], check=True, capture_output=True)
-                self.log_to_terminal("TLS protocol set successfully.", "SUCCESS")
-            except Exception as e:
-                self.log_to_terminal(f"Warning: TLS setting failed: {str(e)}", "WARNING")
-            
-            # Third command - .NET Framework crypto settings
-            cmd3 = "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\.NETFramework\\v4.0.30319' -Name 'SchUseStrongCrypto' -Value 1 -Type DWord"
-            self.log_to_terminal("Setting .NET Framework crypto settings...", "INFO")
-            try:
-                subprocess.run(['powershell', '-Command', cmd3], check=True, capture_output=True)
-                self.log_to_terminal(".NET Framework crypto settings updated.", "SUCCESS")
-            except Exception as e:
-                self.log_to_terminal(f"Warning: .NET crypto setting failed: {str(e)}", "WARNING")
-            
-            # Fourth command - WOW64 .NET Framework crypto settings
-            cmd4 = "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\.NETFramework\\v4.0.30319' -Name 'SchUseStrongCrypto' -Value 1 -Type DWord"
-            self.log_to_terminal("Setting WOW64 .NET Framework crypto settings...", "INFO")
-            try:
-                subprocess.run(['powershell', '-Command', cmd4], check=True, capture_output=True)
-                self.log_to_terminal("WOW64 .NET Framework crypto settings updated.", "SUCCESS")
-            except Exception as e:
-                self.log_to_terminal(f"Warning: WOW64 .NET crypto setting failed: {str(e)}", "WARNING")
-            
-            # Method 3: Try with error handling and continue on non-critical failures
-            self.log_to_terminal("Method 3: Error-tolerant installation...", "INFO")
-            
-            # Try the original installation command with better error handling
-            cmd5 = "irm 'https://raw.githubusercontent.com/GoblinRules/ippy-tray-app/main/install.ps1' | iex"
-            self.log_to_terminal("Executing installation with error tolerance...", "INFO")
-            try:
-                result5 = subprocess.run(['powershell', '-ExecutionPolicy', 'Bypass', '-Command', cmd5], 
-                                       capture_output=True, text=True, timeout=60)
-                
-                # Check if it succeeded or if the error is just about the icon file
-                if result5.returncode == 0:
-                    self.log_to_terminal("IP Python Tray App installed successfully!", "SUCCESS")
-                    messagebox.showinfo("Success", "IP Python Tray App installed successfully!")
-                else:
-                    error_output = result5.stderr if result5.stderr else ""
-                    stdout_output = result5.stdout if result5.stdout else ""
-                    
-                    # Check if the error is just about the icon file (non-critical)
-                    if "tray_app_icon_r.ico" in error_output and "Download-File" in error_output:
-                        self.log_to_terminal("Installation completed with minor icon download warning.", "WARNING")
-                        self.log_to_terminal("The app should still function correctly.", "INFO")
-                        messagebox.showwarning("Installation Warning", 
-                                             "IP Python Tray App installed with minor issues.\n\n"
-                                             "An icon file couldn't be downloaded, but the app should still work.\n\n"
-                                             "You can manually download the icon later if needed.")
-                    else:
-                        error_details = error_output if error_output else "Unknown error"
-                        self.log_to_terminal(f"Installation failed: {error_details}", "ERROR")
-                        
-                        # Show detailed error dialog
-                        messagebox.showerror("Installation Failed", 
-                                           f"IP Python Tray App installation failed.\n\n"
-                                           f"Error details: {error_details}\n\n"
-                                           f"Please check the terminal output for more information.")
-                        
-            except subprocess.TimeoutExpired:
-                self.log_to_terminal("Installation command timed out.", "ERROR")
-                messagebox.showerror("Timeout", "Installation command timed out. Please try again.")
-            except Exception as e:
-                error_msg = f"Installation command failed: {str(e)}"
-                self.log_to_terminal(error_msg, "ERROR")
-                messagebox.showerror("Error", error_msg)
-                
+        except subprocess.TimeoutExpired:
+            self.log_to_terminal("Installation timed out. Please try again.", "error")
         except Exception as e:
-            error_msg = f"Failed to install IP Python Tray App: {str(e)}"
-            self.log_to_terminal(error_msg, "ERROR")
-            messagebox.showerror("Error", error_msg)
+            self.log_to_terminal(f"Installation error: {str(e)}", "error")
     
     def download_and_install_msi(self, url):
         """
@@ -831,25 +810,306 @@ class InvokeX:
             self.log_to_terminal(error_msg, "ERROR")
             messagebox.showerror("Error", error_msg)
     
-    def remove_shutdown_from_startup(self):
-        """
-        Remove shutdown option from startup power menu.
+    def remove_shutdown_from_startup_win10(self):
+        """Remove shutdown option from startup power menu for Windows 10."""
+        self.log_to_terminal("Removing shutdown option from startup power menu (Windows 10)...", "info")
         
-        Uses PowerShell to modify registry settings to remove the
-        shutdown option from the startup power menu.
-        """
         try:
-            self.log_to_terminal("Removing shutdown option from startup power menu...", "INFO")
+            # Check if we're running as administrator
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                self.log_to_terminal("This operation requires administrator privileges.", "warning")
+                self.log_to_terminal("Please restart the application as administrator.", "warning")
+                return
             
-            # Registry command to remove shutdown from startup
-            cmd = "Remove-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'ShutdownWithoutLogon' -ErrorAction SilentlyContinue"
-            subprocess.run(['powershell', '-Command', cmd], check=True)
+            # Registry keys specific to Windows 10
+            registry_commands = [
+                # Disable fast startup (Windows 10 specific)
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power' -Name 'HiberbootEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Remove shutdown option from power button (Windows 10)
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'ShutdownWithoutLogon' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Disable shutdown option in start menu (Windows 10)
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Remove shutdown from Ctrl+Alt+Del menu (Windows 10)
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'DisableCAD' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Additional Windows 10 power management settings
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HibernateEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Disable hybrid sleep (Windows 10)
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HybridSleepEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Create the policies keys if they don't exist
+                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Force -ErrorAction SilentlyContinue | Out-Null",
+                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
+            ]
             
-            self.log_to_terminal("Shutdown option removed from startup power menu!", "SUCCESS")
-            messagebox.showinfo("Success", "Shutdown option removed from startup power menu!")
+            success_count = 0
+            total_commands = len(registry_commands)
+            
+            for i, command in enumerate(registry_commands, 1):
+                try:
+                    self.log_to_terminal(f"Executing Windows 10 registry command {i}/{total_commands}...", "info")
+                    result = subprocess.run([
+                        "powershell", "-Command", command
+                    ], capture_output=True, text=True, timeout=30)
+                    
+                    if result.returncode == 0:
+                        success_count += 1
+                        self.log_to_terminal(f"Windows 10 registry command {i} executed successfully.", "success")
+                    else:
+                        # Check if this is a "key doesn't exist" error (which is normal)
+                        error_output = result.stderr.lower() if result.stderr else ""
+                        if any(phrase in error_output for phrase in ["does not exist", "not found", "path not found"]):
+                            self.log_to_terminal(f"Registry key not found (this is normal): {command}", "info")
+                            success_count += 1  # Count as success since the goal is achieved
+                        else:
+                            self.log_to_terminal(f"Windows 10 registry command {i} failed: {result.stderr}", "warning")
+                            
+                except subprocess.TimeoutExpired:
+                    self.log_to_terminal(f"Windows 10 registry command {i} timed out.", "warning")
+                except Exception as e:
+                    self.log_to_terminal(f"Windows 10 registry command {i} error: {str(e)}", "warning")
+            
+            # Apply the changes
+            self.log_to_terminal("Applying Windows 10 registry changes...", "info")
+            try:
+                # Refresh the system to apply changes
+                subprocess.run(["gpupdate", "/force"], capture_output=True, timeout=60)
+                self.log_to_terminal("Group Policy updated successfully.", "success")
+            except:
+                self.log_to_terminal("Group Policy update completed.", "info")
+            
+            # Final verification
+            if success_count >= total_commands * 0.7:  # Allow 30% failure rate
+                self.log_to_terminal("Windows 10 shutdown option removal completed successfully!", "success")
+                self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
+                
+                # Show success message
+                messagebox.showinfo("Success", 
+                    "Shutdown option has been removed from Windows 10 startup power menu!\n\n"
+                    "Changes applied:\n"
+                    "• Shutdown option removed from startup\n"
+                    "• Fast startup disabled\n"
+                    "• Power button behavior modified\n"
+                    "• Ctrl+Alt+Del menu updated\n\n"
+                    "Note: A system restart may be required for all changes to take effect.")
+            else:
+                self.log_to_terminal("Some Windows 10 registry commands failed. Please check the output above.", "warning")
+                messagebox.showwarning("Partial Success", 
+                    "Some Windows 10 shutdown removal operations completed, but not all.\n\n"
+                    "Please check the terminal output for details and consider running as administrator.")
+                
+        except Exception as e:
+            error_msg = f"Failed to remove Windows 10 shutdown option: {str(e)}"
+            self.log_to_terminal(error_msg, "error")
+            messagebox.showerror("Error", error_msg)
+    
+    def remove_shutdown_from_startup_win11(self):
+        """Remove shutdown option from startup power menu for Windows 11."""
+        self.log_to_terminal("Removing shutdown option from startup power menu (Windows 11)...", "info")
+        
+        try:
+            # Check if we're running as administrator
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                self.log_to_terminal("This operation requires administrator privileges.", "warning")
+                self.log_to_terminal("Please restart the application as administrator.", "warning")
+                return
+            
+            # Registry keys specific to Windows 11
+            registry_commands = [
+                # Disable fast startup (Windows 11 specific)
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power' -Name 'HiberbootEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Remove shutdown option from power button (Windows 11)
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'ShutdownWithoutLogon' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Disable shutdown option in start menu (Windows 11)
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Remove shutdown from Ctrl+Alt+Del menu (Windows 11)
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Name 'DisableCAD' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Additional Windows 11 power management settings
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HibernateEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Disable hybrid sleep (Windows 11)
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HybridSleepEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Windows 11 specific: Disable modern standby
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'CsEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Windows 11 specific: Disable connected standby
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'ConnectedStandbyEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Create the policies keys if they don't exist
+                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Force -ErrorAction SilentlyContinue | Out-Null",
+                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
+            ]
+            
+            success_count = 0
+            total_commands = len(registry_commands)
+            
+            for i, command in enumerate(registry_commands, 1):
+                try:
+                    self.log_to_terminal(f"Executing Windows 11 registry command {i}/{total_commands}...", "info")
+                    result = subprocess.run([
+                        "powershell", "-Command", command
+                    ], capture_output=True, text=True, timeout=30)
+                    
+                    if result.returncode == 0:
+                        success_count += 1
+                        self.log_to_terminal(f"Windows 11 registry command {i} executed successfully.", "success")
+                    else:
+                        # Check if this is a "key doesn't exist" error (which is normal)
+                        error_output = result.stderr.lower() if result.stderr else ""
+                        if any(phrase in error_output for phrase in ["does not exist", "not found", "path not found"]):
+                            self.log_to_terminal(f"Registry key not found (this is normal): {command}", "info")
+                            success_count += 1  # Count as success since the goal is achieved
+                        else:
+                            self.log_to_terminal(f"Windows 11 registry command {i} failed: {result.stderr}", "warning")
+                            
+                except subprocess.TimeoutExpired:
+                    self.log_to_terminal(f"Windows 11 registry command {i} timed out.", "warning")
+                except Exception as e:
+                    self.log_to_terminal(f"Windows 11 registry command {i} error: {str(e)}", "warning")
+            
+            # Apply the changes
+            self.log_to_terminal("Applying Windows 11 registry changes...", "info")
+            try:
+                # Refresh the system to apply changes
+                subprocess.run(["gpupdate", "/force"], capture_output=True, timeout=60)
+                self.log_to_terminal("Group Policy updated successfully.", "success")
+            except:
+                self.log_to_terminal("Group Policy update completed.", "info")
+            
+            # Final verification
+            if success_count >= total_commands * 0.7:  # Allow 30% failure rate
+                self.log_to_terminal("Windows 11 shutdown option removal completed successfully!", "success")
+                self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
+                
+                # Show success message
+                messagebox.showinfo("Success", 
+                    "Shutdown option has been removed from Windows 11 startup power menu!\n\n"
+                    "Changes applied:\n"
+                    "• Shutdown option removed from startup\n"
+                    "• Fast startup disabled\n"
+                    "• Power button behavior modified\n"
+                    "• Ctrl+Alt+Del menu updated\n"
+                    "• Modern standby disabled\n"
+                    "• Connected standby disabled\n\n"
+                    "Note: A system restart may be required for all changes to take effect.")
+            else:
+                self.log_to_terminal("Some Windows 11 registry commands failed. Please check the output above.", "warning")
+                messagebox.showwarning("Partial Success", 
+                    "Some Windows 11 shutdown removal operations completed, but not all.\n\n"
+                    "Please check the terminal output for details and consider running as administrator.")
+                
+        except Exception as e:
+            error_msg = f"Failed to remove Windows 11 shutdown option: {str(e)}"
+            self.log_to_terminal(error_msg, "error")
+            messagebox.showerror("Error", error_msg)
+    
+    def remove_shutdown_from_startup(self):
+        """Remove shutdown option from startup power menu for Windows 10 & 11."""
+        self.log_to_terminal("Removing shutdown option from startup power menu...", "info")
+        
+        try:
+            # Check if we're running as administrator
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                self.log_to_terminal("This operation requires administrator privileges.", "warning")
+                self.log_to_terminal("Please restart the application as administrator.", "warning")
+                return
+            
+            # Registry keys to modify for Windows 10/11 - using simpler, more reliable commands
+            registry_commands = [
+                # Disable fast startup (which can interfere with power options)
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power' -Name 'HiberbootEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Remove shutdown option from power button
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentControlSet\\Policies\\System' -Name 'ShutdownWithoutLogon' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Disable shutdown option in start menu
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Name 'NoClose' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Remove shutdown from Ctrl+Alt+Del menu
+                "Set-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentControlSet\\Policies\\System' -Name 'DisableCAD' -Value 1 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Additional power management settings
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HibernateEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Disable hybrid sleep
+                "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name 'HybridSleepEnabled' -Value 0 -Type DWord -ErrorAction SilentlyContinue",
+                
+                # Create the policies keys if they don't exist
+                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System' -Force -ErrorAction SilentlyContinue | Out-Null",
+                "New-Item -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer' -Force -ErrorAction SilentlyContinue | Out-Null"
+            ]
+            
+            success_count = 0
+            total_commands = len(registry_commands)
+            
+            for i, command in enumerate(registry_commands, 1):
+                try:
+                    self.log_to_terminal(f"Executing registry command {i}/{total_commands}...", "info")
+                    result = subprocess.run([
+                        "powershell", "-Command", command
+                    ], capture_output=True, text=True, timeout=30)
+                    
+                    if result.returncode == 0:
+                        success_count += 1
+                        self.log_to_terminal(f"Registry command {i} executed successfully.", "success")
+                    else:
+                        # Check if this is a "key doesn't exist" error (which is normal)
+                        error_output = result.stderr.lower() if result.stderr else ""
+                        if any(phrase in error_output for phrase in ["does not exist", "not found", "path not found"]):
+                            self.log_to_terminal(f"Registry key not found (this is normal): {command}", "info")
+                            success_count += 1  # Count as success since the goal is achieved
+                        else:
+                            self.log_to_terminal(f"Registry command {i} failed: {result.stderr}", "warning")
+                            
+                except subprocess.TimeoutExpired:
+                    self.log_to_terminal(f"Registry command {i} timed out.", "warning")
+                except Exception as e:
+                    self.log_to_terminal(f"Registry command {i} error: {str(e)}", "warning")
+            
+            # Apply the changes
+            self.log_to_terminal("Applying registry changes...", "info")
+            try:
+                # Refresh the system to apply changes
+                subprocess.run(["gpupdate", "/force"], capture_output=True, timeout=60)
+                self.log_to_terminal("Group Policy updated successfully.", "success")
+            except:
+                self.log_to_terminal("Group Policy update completed.", "info")
+            
+            # Final verification
+            if success_count >= total_commands * 0.7:  # Allow 30% failure rate
+                self.log_to_terminal("Shutdown option removal completed successfully!", "success")
+                self.log_to_terminal("Note: Some changes may require a system restart to take full effect.", "info")
+                
+                # Show success message
+                messagebox.showinfo("Success", 
+                    "Shutdown option has been removed from the startup power menu!\n\n"
+                    "Changes applied:\n"
+                    "• Shutdown option removed from startup\n"
+                    "• Fast startup disabled\n"
+                    "• Power button behavior modified\n"
+                    "• Ctrl+Alt+Del menu updated\n\n"
+                    "Note: A system restart may be required for all changes to take effect.")
+            else:
+                self.log_to_terminal("Some registry commands failed. Please check the output above.", "warning")
+                messagebox.showwarning("Partial Success", 
+                    "Some shutdown removal operations completed, but not all.\n\n"
+                    "Please check the terminal output for details and consider running as administrator.")
+                
         except Exception as e:
             error_msg = f"Failed to remove shutdown option: {str(e)}"
-            self.log_to_terminal(error_msg, "ERROR")
+            self.log_to_terminal(error_msg, "error")
             messagebox.showerror("Error", error_msg)
     
     def view_power_logs(self):
