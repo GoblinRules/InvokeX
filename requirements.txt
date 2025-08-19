@@ -1,0 +1,17 @@
+# InvokeX Requirements
+# Core dependencies for the GUI application and icon generation
+
+# For icon generation (optional)
+Pillow>=9.0.0
+
+# Note: All other dependencies are built-in Python modules:
+# - tkinter (GUI framework)
+# - subprocess (command execution)
+# - webbrowser (URL opening)
+# - os (file operations)
+# - sys (system operations)
+# - logging (log management)
+# - datetime (timestamp handling)
+# - ctypes (admin privileges check)
+
+# Python 3.6+ required for f-strings and modern tkinter features
