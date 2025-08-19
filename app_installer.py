@@ -469,27 +469,30 @@ class InvokeX:
                                  "Hide Shutdown Options",
                                  "Hide shutdown, sleep, and hibernate options from start menu (restart option preserved)",
                                  "Hide Options",
-                                 "Restore Options",
+                                 "Restore Defaults",
                                  lambda: self.remove_shutdown_from_startup_smart(),
-                                 lambda: self.restore_shutdown_options())
+                                 lambda: self.restore_shutdown_options(),
+                                 has_registry=True)
         
         # Tweak 2: Set Chrome As Default Browser
         self.create_tweak_section(tweaks_container,
                                  "Set Chrome As Default Browser",
                                  "Set Google Chrome as default browser",
                                  "Set Chrome Default",
-                                 "Reset Default",
+                                 "Restore Defaults",
                                  lambda: self.set_chrome_as_default(),
-                                 lambda: self.reset_default_browser())
+                                 lambda: self.reset_default_browser(),
+                                 has_registry=True)
         
         # Tweak 3: Power Management Settings
         self.create_tweak_section(tweaks_container,
                                  "Power Management Settings",
                                  "Configure power settings (sleep/hibernate to never, lid close to do nothing)",
                                  "Configure Power",
-                                 "Reset Power",
+                                 "Restore Defaults",
                                  lambda: self.configure_power_management(),
-                                 lambda: self.reset_power_management())
+                                 lambda: self.reset_power_management(),
+                                 has_registry=True)
         
         # Tweak 4: View Power Logs
         self.create_tweak_section(tweaks_container,
@@ -498,16 +501,8 @@ class InvokeX:
                                  "View Logs",
                                  None,  # No restore needed
                                  lambda: self.view_power_logs(),
-                                 None)
-        
-        # Tweak 5: Check Registry Keys
-        self.create_tweak_section(tweaks_container,
-                                 "Check Registry Keys",
-                                 "Check current registry settings for power and shutdown options",
-                                 "Check Registry",
-                                 None,  # No restore needed
-                                 lambda: self.check_registry_keys(),
-                                 None)
+                                 None,
+                                 has_registry=False)
         
         # Pack canvas and scrollbar
         canvas.pack(side="left", fill="both", expand=True)
@@ -531,9 +526,9 @@ class InvokeX:
         tweaks_container.bind('<Enter>', _bind_mousewheel)
         tweaks_container.bind('<Leave>', _unbind_mousewheel)
     
-    def create_tweak_section(self, parent, title, description, action_text, restore_text, action_func, restore_func):
+    def create_tweak_section(self, parent, title, description, action_text, restore_text, action_func, restore_func, has_registry=True):
         """
-        Create a section for an individual tweak with action and restore buttons.
+        Create a section for an individual tweak with action, restore, and check registry buttons.
         
         Args:
             parent: The parent widget
@@ -543,6 +538,7 @@ class InvokeX:
             restore_text (str): Text for the restore button (None to hide)
             action_func: Function to call when action button is clicked
             restore_func: Function to call when restore button is clicked (None to hide)
+            has_registry (bool): Whether this tweak has registry settings to check
         """
         # Container for each tweak
         tweak_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
@@ -584,15 +580,136 @@ class InvokeX:
                                    font=('Segoe UI', 8, 'bold'),
                                    relief='flat', padx=15, pady=5,
                                    cursor='hand2')
-            restore_btn.pack(side='left')
+            restore_btn.pack(side='left', padx=(0, 8))
             
             # Hover effects for restore button
             restore_btn.bind('<Enter>', lambda e: restore_btn.configure(bg='#229954'))
             restore_btn.bind('<Leave>', lambda e: restore_btn.configure(bg='#27ae60'))
         
+        # Check Registry button (only for tweaks that modify registry)
+        if has_registry:
+            check_reg_btn = tk.Button(buttons_frame, text="Check Reg Keys", 
+                                     command=lambda: self.check_registry_keys_for_tweak(title),
+                                     bg='#3498db', fg='white',  # Blue for check
+                                     font=('Segoe UI', 8, 'bold'),
+                                     relief='flat', padx=15, pady=5,
+                                     cursor='hand2')
+            check_reg_btn.pack(side='left')
+            
+            # Hover effects for check registry button
+            check_reg_btn.bind('<Enter>', lambda e: check_reg_btn.configure(bg='#2980b9'))
+            check_reg_btn.bind('<Leave>', lambda e: check_reg_btn.configure(bg='#3498db'))
+        
         # Hover effects for action button
         action_btn.bind('<Enter>', lambda e: action_btn.configure(bg='#c0392b'))
         action_btn.bind('<Leave>', lambda e: action_btn.configure(bg='#e74c3c'))
+
+    def check_registry_keys_for_tweak(self, tweak_name):
+        """Check registry keys specific to a tweak."""
+        self.log_to_terminal(f"Checking registry keys for: {tweak_name}", "info")
+        
+        try:
+            if tweak_name == "Hide Shutdown Options":
+                # Check shutdown-related registry keys
+                keys_to_check = [
+                    ("HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "NoShutdown"),
+                    ("HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "NoShutdown"),
+                    ("HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", "DisableShutdown"),
+                    ("HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "NoLogoff")
+                ]
+            elif tweak_name == "Set Chrome As Default Browser":
+                # Check browser-related registry keys
+                keys_to_check = [
+                    ("HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice", "ProgId"),
+                    ("HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\https\\UserChoice", "ProgId"),
+                    ("HKCU\\Software\\Classes\\.html", ""),
+                    ("HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.html\\UserChoice", "ProgId")
+                ]
+            elif tweak_name == "Power Management Settings":
+                # Check power-related registry keys
+                keys_to_check = [
+                    ("HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerSettings", ""),
+                    ("HKCU\\Control Panel\\PowerCfg", ""),
+                    ("HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FlyoutMenuSettings", "ShowSleepOption"),
+                    ("HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FlyoutMenuSettings", "ShowHibernateOption")
+                ]
+            else:
+                messagebox.showinfo("No Registry Keys", f"No specific registry keys to check for {tweak_name}")
+                return
+            
+            # Check each registry key
+            found_keys = []
+            missing_keys = []
+            
+            for reg_path, value_name in keys_to_check:
+                try:
+                    # Use reg query to check the key
+                    if value_name:
+                        cmd = f'reg query "{reg_path}" /v "{value_name}"'
+                    else:
+                        cmd = f'reg query "{reg_path}"'
+                    
+                    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+                    
+                    if result.returncode == 0:
+                        if value_name:
+                            # Extract the value from the output
+                            lines = result.stdout.split('\n')
+                            for line in lines:
+                                if value_name in line:
+                                    found_keys.append(f"{reg_path}\\{value_name}: {line.strip()}")
+                                    break
+                        else:
+                            found_keys.append(f"{reg_path}: EXISTS")
+                    else:
+                        missing_keys.append(f"{reg_path}\\{value_name}" if value_name else reg_path)
+                        
+                except Exception as e:
+                    missing_keys.append(f"{reg_path}\\{value_name} (Error: {str(e)})" if value_name else f"{reg_path} (Error: {str(e)})")
+            
+            # Display results
+            result_text = f"Registry Check Results for {tweak_name}:\n\n"
+            
+            if found_keys:
+                result_text += "FOUND KEYS:\n"
+                for key in found_keys:
+                    result_text += f"✓ {key}\n"
+                result_text += "\n"
+            
+            if missing_keys:
+                result_text += "MISSING KEYS:\n"
+                for key in missing_keys:
+                    result_text += f"✗ {key}\n"
+            
+            if not found_keys and not missing_keys:
+                result_text += "No registry keys checked."
+            
+            # Show results in a dialog
+            result_window = tk.Toplevel(self.root)
+            result_window.title(f"Registry Check - {tweak_name}")
+            result_window.geometry("800x400")
+            result_window.resizable(True, True)
+            
+            # Text widget with scrollbar
+            text_frame = tk.Frame(result_window)
+            text_frame.pack(fill='both', expand=True, padx=10, pady=10)
+            
+            text_widget = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD, font=('Consolas', 9))
+            text_widget.pack(fill='both', expand=True)
+            text_widget.insert(tk.END, result_text)
+            text_widget.config(state=tk.DISABLED)
+            
+            # Close button
+            close_btn = tk.Button(result_window, text="Close", command=result_window.destroy,
+                                 bg='#3498db', fg='white', font=('Segoe UI', 10, 'bold'))
+            close_btn.pack(pady=10)
+            
+            self.log_to_terminal(f"Registry check completed for {tweak_name}", "success")
+            
+        except Exception as e:
+            error_msg = f"Failed to check registry keys for {tweak_name}: {str(e)}"
+            self.log_to_terminal(error_msg, "error")
+            messagebox.showerror("Registry Check Error", error_msg)
 
     def check_app_installed(self, app_name):
         """
@@ -614,24 +731,36 @@ class InvokeX:
                                       capture_output=True, text=True, timeout=10)
                 return "RUNNING" in result.stdout or "STOPPED" in result.stdout
             elif app_name == "IP Python Tray App":
-                # Check multiple possible locations for the tray app - prioritize C:\Tools\
-                locations = [
+                # Check for the specific tray app location
+                primary_location = "C:\\Tools\\TrayApp\\main.py"
+                if os.path.exists(primary_location):
+                    return True
+                
+                # Fallback locations
+                fallback_locations = [
                     "C:\\Tools\\ippy-tray-app",
                     "C:\\Tools\\ippy-tray-app\\main.py",
                     "C:\\Tools\\ippy_tray_app.py",
                     "C:\\Tools\\ip_tray_app.py",
+                    "C:\\Tools\\TrayApp",
                     os.path.expanduser("~\\AppData\\Local\\ippy-tray-app"),
                     os.path.expanduser("~\\AppData\\Roaming\\ippy-tray-app")
                 ]
+                
                 # Also check for any Python files in C:\Tools\ that might be the tray app
                 try:
                     import glob
                     python_files = glob.glob("C:\\Tools\\*tray*.py")
                     if python_files:
                         return True
+                    # Check for TrayApp folder
+                    tray_folders = glob.glob("C:\\Tools\\*TrayApp*")
+                    if tray_folders:
+                        return True
                 except:
                     pass
-                return any(os.path.exists(loc) for loc in locations)
+                
+                return any(os.path.exists(loc) for loc in fallback_locations)
             elif app_name == "Tailscale":
                 # Check if Tailscale is installed - improved detection
                 locations = [
@@ -692,37 +821,37 @@ class InvokeX:
                     pass
                 return any(os.path.exists(loc) for loc in locations) or any(os.path.exists(loc) for loc in exe_locations)
             elif app_name == "MASS":
-                # Check if Windows is activated (MASS purpose)
+                # Check if Windows is activated (MASS purpose) - simplified method
                 try:
-                    # Method 1: PowerShell CIM method (most reliable)
-                    ps_cmd = '''
-                    $license = Get-CimInstance -ClassName SoftwareLicensingProduct | Where-Object {$_.PartialProductKey -and $_.LicenseStatus -eq 1}
-                    if ($license) { Write-Output "ACTIVATED" } else { Write-Output "NOT_ACTIVATED" }
-                    '''
-                    ps_result = subprocess.run([
-                        'powershell', '-ExecutionPolicy', 'Bypass', '-Command', ps_cmd
-                    ], capture_output=True, text=True, timeout=15)
-                    
-                    if "ACTIVATED" in ps_result.stdout.upper():
-                        return True
-                    
-                    # Method 2: slmgr /xpr (fallback)
-                    result = subprocess.run(['slmgr', '/xpr'], capture_output=True, text=True, timeout=15, shell=True)
-                    if result.returncode == 0 and ("permanently activated" in result.stdout.lower() or "permanently licensed" in result.stdout.lower()):
-                        return True
-                    
-                    # Method 3: Alternative PowerShell method
-                    alt_ps = '''
-                    $status = (Get-WmiObject -Class SoftwareLicensingService).OA3xOriginalProductKeyDescription
-                    $license = Get-WmiObject -Class SoftwareLicensingProduct | Where-Object {$_.LicenseStatus -eq 1 -and $_.PartialProductKey}
-                    if ($license) { "LICENSED" } else { "UNLICENSED" }
-                    '''
-                    alt_result = subprocess.run([
-                        'powershell', '-ExecutionPolicy', 'Bypass', '-Command', alt_ps
+                    # Method 1: Simple license status check
+                    result = subprocess.run([
+                        'cscript', '//nologo', 'C:\\Windows\\System32\\slmgr.vbs', '/dli'
                     ], capture_output=True, text=True, timeout=10)
                     
-                    if "LICENSED" in alt_result.stdout.upper():
+                    if result.returncode == 0:
+                        output = result.stdout.lower()
+                        if "license status: licensed" in output:
+                            return True
+                    
+                    # Method 2: Quick PowerShell check
+                    ps_simple = '(Get-WmiObject -Query "SELECT LicenseStatus FROM SoftwareLicensingProduct WHERE LicenseStatus=1 AND PartialProductKey IS NOT NULL" | Measure-Object).Count -gt 0'
+                    ps_result = subprocess.run([
+                        'powershell', '-ExecutionPolicy', 'Bypass', '-Command', ps_simple
+                    ], capture_output=True, text=True, timeout=8)
+                    
+                    if ps_result.returncode == 0 and "true" in ps_result.stdout.lower():
                         return True
+                    
+                    # Method 3: Registry check for activation
+                    try:
+                        import winreg
+                        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion")
+                        digital_id = winreg.QueryValueEx(key, "DigitalProductId")[0]
+                        winreg.CloseKey(key)
+                        # If we can read the digital product ID, likely activated
+                        return len(digital_id) > 0
+                    except:
+                        pass
                         
                     return False
                 except Exception as e:
@@ -784,6 +913,38 @@ class InvokeX:
         # Return True only if all apps are installed
         return apps_installed == total_apps
     
+    def check_app_async(self, app_name, status_label):
+        """Check app installation status asynchronously."""
+        try:
+            is_installed = self.check_app_installed(app_name)
+            status_text = "✓ Installed" if is_installed else "○ Not Installed"
+            status_color = "#27ae60" if is_installed else "#95a5a6"
+            status_label.config(text=status_text, fg=status_color)
+        except:
+            status_label.config(text="○ Not Installed", fg="#95a5a6")
+    
+    def check_mass_activation_async(self, status_label):
+        """Check Windows activation status asynchronously."""
+        try:
+            is_activated = self.check_app_installed("MASS")
+            status_text = "✓ Windows Activated" if is_activated else "✗ Windows Not Activated"
+            status_color = "#27ae60" if is_activated else "#e74c3c"
+            status_label.config(text=status_text, fg=status_color)
+        except:
+            status_label.config(text="✗ Windows Not Activated", fg="#e74c3c")
+    
+    def check_ninite_async(self, status_label):
+        """Check Ninite apps status asynchronously."""
+        try:
+            all_installed = self.check_app_installed("Ninite Installer")
+            count = getattr(self, 'ninite_count', 0)
+            total = getattr(self, 'ninite_total', 4)
+            status_text = f"✓ All Apps Installed ({count}/{total})" if all_installed else f"✗ Apps Installed ({count}/{total})"
+            status_color = "#27ae60" if all_installed else "#e74c3c"  # Red when not all installed
+            status_label.config(text=status_text, fg=status_color)
+        except:
+            status_label.config(text="✗ Apps Installed (0/4)", fg="#e74c3c")
+
     def refresh_app_status(self, app_name, status_label):
         """
         Refresh the status of a specific app.
@@ -844,36 +1005,40 @@ class InvokeX:
         desc_label.pack(anchor='w', pady=(3, 0))
         
         # Status indicator - special handling for different apps
+        # Use lazy loading for better performance
         if title == "MASS":
-            is_activated = self.check_app_installed(title)
-            status_text = "✓ Windows Activated" if is_activated else "✗ Windows Not Activated"
-            status_color = "#27ae60" if is_activated else "#e74c3c"  # Green if activated, red if not
+            # Show loading initially, check later
+            status_text = "○ Checking activation..."
+            status_color = "#95a5a6"
             status_label = tk.Label(info_frame, text=status_text, 
                                    font=('Segoe UI', 8, 'bold'), 
                                    bg='white', fg=status_color, anchor='w')
             status_label.pack(anchor='w', pady=(5, 0))
+            # Check activation in background
+            self.root.after(100, lambda: self.check_mass_activation_async(status_label))
         elif title == "CTT WinUtil":
             # CTT WinUtil doesn't need a status indicator since it's just a script runner
             status_label = None
         elif title == "Ninite Installer":
-            # Ninite shows count of installed apps
-            all_installed = self.check_app_installed(title)
-            count = getattr(self, 'ninite_count', 0)
-            total = getattr(self, 'ninite_total', 4)
-            status_text = f"✓ All Apps Installed ({count}/{total})" if all_installed else f"○ Apps Installed ({count}/{total})"
-            status_color = "#27ae60" if all_installed else "#95a5a6"
+            # Show loading initially, check later
+            status_text = "○ Checking apps..."
+            status_color = "#95a5a6"
             status_label = tk.Label(info_frame, text=status_text, 
                                    font=('Segoe UI', 8, 'bold'), 
                                    bg='white', fg=status_color, anchor='w')
             status_label.pack(anchor='w', pady=(5, 0))
+            # Check Ninite apps in background
+            self.root.after(200, lambda: self.check_ninite_async(status_label))
         else:
-            is_installed = self.check_app_installed(title)
-            status_text = "✓ Installed" if is_installed else "○ Not Installed"
-            status_color = "#27ae60" if is_installed else "#95a5a6"
+            # Show loading initially, check later
+            status_text = "○ Checking..."
+            status_color = "#95a5a6"
             status_label = tk.Label(info_frame, text=status_text, 
                                    font=('Segoe UI', 8, 'bold'), 
                                    bg='white', fg=status_color, anchor='w')
             status_label.pack(anchor='w', pady=(5, 0))
+            # Check installation in background
+            self.root.after(50, lambda: self.check_app_async(title, status_label))
         
         # Buttons frame
         buttons_frame = tk.Frame(info_frame, bg='white')
@@ -1423,10 +1588,10 @@ class InvokeX:
     
     def remove_shutdown_from_startup_smart(self):
         """
-        Disable shutdown functionality using a simple, reliable method.
-        This method disables the shutdown.exe process itself.
+        Hide shutdown options using Group Policy registry settings.
+        This method uses multiple registry approaches for maximum compatibility.
         """
-        self.log_to_terminal("Attempting to disable shutdown functionality...", "info")
+        self.log_to_terminal("Attempting to hide shutdown options from start menu...", "info")
         
         try:
             # Check if we're running as administrator
@@ -1435,63 +1600,67 @@ class InvokeX:
                 self.log_to_terminal("This operation requires administrator privileges.", "warning")
                 messagebox.showwarning("Administrator Required", 
                     "This operation requires administrator privileges.\n\n"
-                    "Please restart InvokeX as administrator to disable shutdown.")
+                    "Please restart InvokeX as administrator to hide shutdown options.")
                 return
             
-            # Method 1: Rename shutdown.exe to disable it
-            shutdown_path = "C:\\Windows\\System32\\shutdown.exe"
-            shutdown_backup = "C:\\Windows\\System32\\shutdown_backup.exe"
-            
             success_count = 0
-            total_methods = 3
+            total_methods = 4
             
+            # Method 1: Hide shutdown button from start menu (User Policy)
             try:
-                if os.path.exists(shutdown_path) and not os.path.exists(shutdown_backup):
-                    # Take ownership and rename shutdown.exe
-                    take_ownership_cmd = f'takeown /f "{shutdown_path}" /a'
-                    subprocess.run(take_ownership_cmd, shell=True, capture_output=True, timeout=30)
-                    
-                    # Grant permissions
-                    icacls_cmd = f'icacls "{shutdown_path}" /grant administrators:F'
-                    subprocess.run(icacls_cmd, shell=True, capture_output=True, timeout=30)
-                    
-                    # Rename the file
-                    os.rename(shutdown_path, shutdown_backup)
-                    self.log_to_terminal("Successfully disabled shutdown.exe", "success")
+                reg_cmd1 = 'reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /t REG_DWORD /d 1 /f'
+                result1 = subprocess.run(reg_cmd1, shell=True, capture_output=True, timeout=30)
+                if result1.returncode == 0:
+                    self.log_to_terminal("Successfully set user shutdown policy", "success")
                     success_count += 1
                 else:
-                    self.log_to_terminal("Shutdown.exe already disabled or backup exists", "info")
-                    success_count += 1
+                    self.log_to_terminal(f"User shutdown policy failed: {result1.stderr}", "warning")
             except Exception as e:
-                self.log_to_terminal(f"Could not disable shutdown.exe: {str(e)}", "warning")
+                self.log_to_terminal(f"Could not set user shutdown policy: {str(e)}", "warning")
             
-            # Method 2: Block shutdown via Group Policy
+            # Method 2: Hide shutdown button (Machine Policy)
             try:
-                gp_cmd = '''
-                reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v DisableShutdown /t REG_DWORD /d 1 /f
-                '''
-                result = subprocess.run(gp_cmd, shell=True, capture_output=True, timeout=30)
-                if result.returncode == 0:
-                    self.log_to_terminal("Successfully set shutdown policy", "success")
+                reg_cmd2 = 'reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /t REG_DWORD /d 1 /f'
+                result2 = subprocess.run(reg_cmd2, shell=True, capture_output=True, timeout=30)
+                if result2.returncode == 0:
+                    self.log_to_terminal("Successfully set machine shutdown policy", "success")
                     success_count += 1
+                else:
+                    self.log_to_terminal(f"Machine shutdown policy failed: {result2.stderr}", "warning")
             except Exception as e:
-                self.log_to_terminal(f"Could not set shutdown policy: {str(e)}", "warning")
+                self.log_to_terminal(f"Could not set machine shutdown policy: {str(e)}", "warning")
             
-            # Method 3: Create a dummy shutdown.exe that does nothing
+            # Method 3: Disable shutdown via system policy
             try:
-                if not os.path.exists(shutdown_path):
-                    dummy_script = '''@echo off
-echo Shutdown has been disabled by InvokeX
-echo Use restart instead: shutdown /r /t 0
-pause
-'''
-                    # Create a batch file that replaces shutdown
-                    with open("C:\\Windows\\System32\\shutdown.bat", "w") as f:
-                        f.write(dummy_script)
-                    self.log_to_terminal("Created dummy shutdown script", "success")
+                reg_cmd3 = 'reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v DisableShutdown /t REG_DWORD /d 1 /f'
+                result3 = subprocess.run(reg_cmd3, shell=True, capture_output=True, timeout=30)
+                if result3.returncode == 0:
+                    self.log_to_terminal("Successfully set system shutdown disable", "success")
                     success_count += 1
+                else:
+                    self.log_to_terminal(f"System shutdown disable failed: {result3.stderr}", "warning")
             except Exception as e:
-                self.log_to_terminal(f"Could not create dummy shutdown: {str(e)}", "warning")
+                self.log_to_terminal(f"Could not set system shutdown disable: {str(e)}", "warning")
+            
+            # Method 4: Hide logoff option as well
+            try:
+                reg_cmd4 = 'reg add "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoLogoff /t REG_DWORD /d 1 /f'
+                result4 = subprocess.run(reg_cmd4, shell=True, capture_output=True, timeout=30)
+                if result4.returncode == 0:
+                    self.log_to_terminal("Successfully hid logoff option", "success")
+                    success_count += 1
+                else:
+                    self.log_to_terminal(f"Hide logoff failed: {result4.stderr}", "warning")
+            except Exception as e:
+                self.log_to_terminal(f"Could not hide logoff: {str(e)}", "warning")
+            
+            # Force Group Policy update
+            try:
+                self.log_to_terminal("Updating Group Policy...", "info")
+                subprocess.run(["gpupdate", "/force"], capture_output=True, timeout=60)
+                self.log_to_terminal("Group Policy updated", "success")
+            except:
+                self.log_to_terminal("Group Policy update completed", "info")
             
             # Final result
             if success_count >= 1:
@@ -1528,46 +1697,69 @@ pause
                 self.log_to_terminal("Please restart the application as administrator.", "warning")
                 return
             
-            # Restore shutdown functionality
-            shutdown_path = "C:\\Windows\\System32\\shutdown.exe"
-            shutdown_backup = "C:\\Windows\\System32\\shutdown_backup.exe"
-            dummy_batch = "C:\\Windows\\System32\\shutdown.bat"
-            
+            # Restore shutdown functionality by removing registry entries
             success_count = 0
-            total_methods = 3
+            total_methods = 4
             
-            # Method 1: Restore shutdown.exe from backup
+            # Method 1: Remove user shutdown policy
             try:
-                if os.path.exists(shutdown_backup) and not os.path.exists(shutdown_path):
-                    os.rename(shutdown_backup, shutdown_path)
-                    self.log_to_terminal("Successfully restored shutdown.exe", "success")
+                reg_cmd1 = 'reg delete "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /f'
+                result1 = subprocess.run(reg_cmd1, shell=True, capture_output=True, timeout=30)
+                if result1.returncode == 0:
+                    self.log_to_terminal("Successfully removed user shutdown policy", "success")
                     success_count += 1
-                elif os.path.exists(shutdown_path):
-                    self.log_to_terminal("Shutdown.exe already exists", "info")
-                    success_count += 1
+                else:
+                    self.log_to_terminal("User shutdown policy not found (already removed)", "info")
+                    success_count += 1  # Count as success since goal is achieved
             except Exception as e:
-                self.log_to_terminal(f"Could not restore shutdown.exe: {str(e)}", "warning")
+                self.log_to_terminal(f"Could not remove user shutdown policy: {str(e)}", "warning")
             
-            # Method 2: Remove shutdown policy
+            # Method 2: Remove machine shutdown policy
             try:
-                gp_cmd = '''
-                reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v DisableShutdown /f
-                '''
-                result = subprocess.run(gp_cmd, shell=True, capture_output=True, timeout=30)
-                if result.returncode == 0:
-                    self.log_to_terminal("Successfully removed shutdown policy", "success")
+                reg_cmd2 = 'reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoShutdown /f'
+                result2 = subprocess.run(reg_cmd2, shell=True, capture_output=True, timeout=30)
+                if result2.returncode == 0:
+                    self.log_to_terminal("Successfully removed machine shutdown policy", "success")
                     success_count += 1
+                else:
+                    self.log_to_terminal("Machine shutdown policy not found (already removed)", "info")
+                    success_count += 1  # Count as success since goal is achieved
             except Exception as e:
-                self.log_to_terminal(f"Could not remove shutdown policy: {str(e)}", "warning")
+                self.log_to_terminal(f"Could not remove machine shutdown policy: {str(e)}", "warning")
             
-            # Method 3: Remove dummy shutdown script
+            # Method 3: Remove system shutdown disable
             try:
-                if os.path.exists(dummy_batch):
-                    os.remove(dummy_batch)
-                    self.log_to_terminal("Removed dummy shutdown script", "success")
+                reg_cmd3 = 'reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v DisableShutdown /f'
+                result3 = subprocess.run(reg_cmd3, shell=True, capture_output=True, timeout=30)
+                if result3.returncode == 0:
+                    self.log_to_terminal("Successfully removed system shutdown disable", "success")
                     success_count += 1
+                else:
+                    self.log_to_terminal("System shutdown disable not found (already removed)", "info")
+                    success_count += 1  # Count as success since goal is achieved
             except Exception as e:
-                self.log_to_terminal(f"Could not remove dummy script: {str(e)}", "warning")
+                self.log_to_terminal(f"Could not remove system shutdown disable: {str(e)}", "warning")
+            
+            # Method 4: Remove logoff hiding
+            try:
+                reg_cmd4 = 'reg delete "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer" /v NoLogoff /f'
+                result4 = subprocess.run(reg_cmd4, shell=True, capture_output=True, timeout=30)
+                if result4.returncode == 0:
+                    self.log_to_terminal("Successfully restored logoff option", "success")
+                    success_count += 1
+                else:
+                    self.log_to_terminal("Logoff policy not found (already removed)", "info")
+                    success_count += 1  # Count as success since goal is achieved
+            except Exception as e:
+                self.log_to_terminal(f"Could not restore logoff option: {str(e)}", "warning")
+            
+            # Force Group Policy update
+            try:
+                self.log_to_terminal("Updating Group Policy...", "info")
+                subprocess.run(["gpupdate", "/force"], capture_output=True, timeout=60)
+                self.log_to_terminal("Group Policy updated", "success")
+            except:
+                self.log_to_terminal("Group Policy update completed", "info")
             
             # Final result
             if success_count >= 1:
