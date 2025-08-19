@@ -494,16 +494,6 @@ class InvokeX:
                                  lambda: self.reset_power_management(),
                                  has_registry=True)
         
-        # Tweak 4: View Power Logs
-        self.create_tweak_section(tweaks_container,
-                                 "View Power Logs",
-                                 "Display power management event logs",
-                                 "View Logs",
-                                 None,  # No restore needed
-                                 lambda: self.view_power_logs(),
-                                 None,
-                                 has_registry=False)
-        
         # Pack canvas and scrollbar
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
