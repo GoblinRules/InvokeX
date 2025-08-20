@@ -1,6 +1,9 @@
 # InvokeX Requirements
 # Core dependencies for the GUI application and icon generation
 
+# Modern GUI framework (replaces tkinter)
+customtkinter>=5.2.0
+
 # For icon generation (optional)
 Pillow>=9.0.0
 
