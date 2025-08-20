@@ -52,6 +52,7 @@ class InvokeX:
         self.root = root
         self.root.title("InvokeX - Application & Tweak Installer")
         self.root.geometry("1000x750")
+        # Modern gradient-like background
         self.root.configure(bg='#f8f9fa')
         
         # Hide console window for cleaner experience
@@ -65,6 +66,9 @@ class InvokeX:
         
         # Check admin privileges
         self.is_admin = self.check_admin_privileges()
+        
+        # Check Python availability for Python-dependent applications
+        self.python_available = self.check_python_availability()
         
         # Style configuration
         self.setup_styles()
@@ -131,6 +135,179 @@ class InvokeX:
             return ctypes.windll.shell32.IsUserAnAdmin()
         except:
             return False
+    
+    def check_python_availability(self):
+        """
+        Check if Python is available and offer to install it if not.
+        
+        Returns:
+            bool: True if Python is available, False otherwise
+        """
+        try:
+            # Check if Python is in PATH
+            result = subprocess.run(['python', '--version'], 
+                                  capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                python_version = result.stdout.strip()
+                self.log_to_terminal(f"Python detected: {python_version}", "SUCCESS")
+                return True
+            else:
+                # Python not found, offer to install
+                self.log_to_terminal("Python not found in system PATH", "WARNING")
+                self.offer_python_installation()
+                return False
+                
+        except FileNotFoundError:
+            # Python executable not found
+            self.log_to_terminal("Python executable not found", "WARNING")
+            self.offer_python_installation()
+            return False
+        except Exception as e:
+            # Other errors
+            self.log_to_terminal(f"Error checking Python: {str(e)}", "ERROR")
+            return False
+    
+    def offer_python_installation(self):
+        """
+        Offer to install Python automatically when it's not found.
+        """
+        # Show this after the UI is fully loaded
+        self.root.after(2000, self._show_python_install_dialog)
+    
+    def _show_python_install_dialog(self):
+        """
+        Show dialog to install Python if it's not found.
+        """
+        install_python = messagebox.askyesno(
+            "Python Not Found", 
+            "Python is required for some applications but was not detected on your system.\n\n"
+            "Would you like to install Python automatically?\n\n"
+            "This is required for:\n"
+            "• IP Python Tray App\n"
+            "• PyAutoClicker\n"
+            "• Other Python-based applications"
+        )
+        
+        if install_python:
+            self.install_python_system()
+    
+    def install_python_system(self):
+        """
+        Install Python using the same method as IP Tray App installation.
+        """
+        try:
+            self.log_to_terminal("Starting Python installation...", "INFO")
+            
+            # Try winget first (modern Windows package manager)
+            try:
+                self.log_to_terminal("Installing Python using Windows Package Manager (winget)...", "INFO")
+                python_install = subprocess.run([
+                    'winget', 'install', 'Python.Python.3.12', 
+                    '--accept-source-agreements', '--accept-package-agreements'
+                ], capture_output=True, text=True, timeout=300)
+                
+                if python_install.returncode == 0:
+                    self.log_to_terminal("Python installed successfully using winget!", "SUCCESS")
+                    
+                    # Refresh environment in current session
+                    self.refresh_environment()
+                    
+                    messagebox.showinfo(
+                        "Python Installed", 
+                        "Python has been installed successfully!\n\n"
+                        "You can now install Python-based applications.\n\n"
+                        "Note: You may need to restart InvokeX for all features to work properly."
+                    )
+                    
+                    self.python_available = True
+                    return
+                else:
+                    self.log_to_terminal("winget installation failed, trying alternative method...", "WARNING")
+            
+            except Exception as e:
+                self.log_to_terminal(f"winget not available or failed: {str(e)}", "WARNING")
+            
+            # Alternative: Download from python.org
+            self.log_to_terminal("Downloading Python from python.org...", "INFO")
+            python_url = "https://www.python.org/ftp/python/3.12.1/python-3.12.1-amd64.exe"
+            python_installer = "python-installer.exe"
+            
+            import urllib.request
+            urllib.request.urlretrieve(python_url, python_installer)
+            self.log_to_terminal("Python installer downloaded. Installing...", "INFO")
+            
+            # Install Python silently with PATH addition
+            install_result = subprocess.run([
+                python_installer, '/quiet', 'InstallAllUsers=1', 'PrependPath=1', 
+                'Include_test=0'  # Skip test suite for faster installation
+            ], capture_output=True, text=True, timeout=600)
+            
+            # Clean up installer
+            try:
+                os.remove(python_installer)
+            except:
+                pass
+            
+            if install_result.returncode == 0:
+                self.log_to_terminal("Python installed successfully!", "SUCCESS")
+                self.refresh_environment()
+                
+                messagebox.showinfo(
+                    "Python Installed", 
+                    "Python has been installed successfully!\n\n"
+                    "You can now install Python-based applications.\n\n"
+                    "Note: You may need to restart InvokeX for all features to work properly."
+                )
+                
+                self.python_available = True
+            else:
+                self.log_to_terminal("Python installation failed", "ERROR")
+                messagebox.showerror(
+                    "Installation Failed", 
+                    "Python could not be installed automatically.\n\n"
+                    "Please install Python manually from:\n"
+                    "https://www.python.org/downloads/\n\n"
+                    "Make sure to check 'Add Python to PATH' during installation."
+                )
+                
+        except Exception as e:
+            self.log_to_terminal(f"Error installing Python: {str(e)}", "ERROR")
+            messagebox.showerror(
+                "Installation Error", 
+                f"An error occurred while installing Python: {str(e)}\n\n"
+                "Please install Python manually from:\n"
+                "https://www.python.org/downloads/"
+            )
+    
+    def refresh_environment(self):
+        """
+        Refresh environment variables in the current session.
+        """
+        try:
+            # Refresh PATH environment variable
+            import winreg
+            
+            # Get system PATH
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, 
+                               "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment") as key:
+                system_path = winreg.QueryValueEx(key, "PATH")[0]
+            
+            # Get user PATH
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+                    user_path = winreg.QueryValueEx(key, "PATH")[0]
+            except FileNotFoundError:
+                user_path = ""
+            
+            # Combine and update current environment
+            combined_path = system_path + ";" + user_path if user_path else system_path
+            os.environ['PATH'] = combined_path
+            
+            self.log_to_terminal("Environment variables refreshed", "INFO")
+            
+        except Exception as e:
+            self.log_to_terminal(f"Could not refresh environment: {str(e)}", "WARNING")
     
     def show_admin_warning(self):
         """
@@ -265,33 +442,65 @@ class InvokeX:
         
     def log_to_terminal(self, message, level="INFO"):
         """
-        Log a message to both the terminal and log files.
+        Log a message to both the terminal and log files with enhanced formatting.
         
         Args:
             message (str): The message to log
             level (str): The log level (INFO, ERROR, WARNING, SUCCESS)
         """
         timestamp = datetime.now().strftime("%H:%M:%S")
+        date_stamp = datetime.now().strftime("%Y-%m-%d")
+        
+        # Color map for different log levels
         color_map = {
-            "INFO": "#00ff00",    # Green
-            "ERROR": "#ff0000",   # Red
-            "WARNING": "#ffff00", # Yellow
-            "SUCCESS": "#00ffff"  # Cyan
+            "INFO": "#28a745",     # Green
+            "ERROR": "#dc3545",    # Red
+            "WARNING": "#ffc107",  # Yellow/Orange
+            "SUCCESS": "#17a2b8",  # Cyan/Blue
+            "DEBUG": "#6c757d"     # Gray
         }
         
-        # Add to terminal
-        self.terminal.insert(tk.END, f"[{timestamp}] {level}: {message}\n")
-        self.terminal.see(tk.END)
+        # Level formatting for better readability
+        level_formatted = f"[{level.upper():^7}]"
         
-        # Log to file
+        # Enhanced terminal output with more detail
+        log_entry = f"[{timestamp}] {level_formatted} {message}\n"
+        
+        # Add to terminal with color (if supported)
+        try:
+            self.terminal.configure(state='normal')
+            start_index = self.terminal.index(tk.END + "-1c linestart")
+            self.terminal.insert(tk.END, log_entry)
+            end_index = self.terminal.index(tk.END + "-1c")
+            
+            # Apply color to the log level portion
+            level_start = f"{start_index} + {len(f'[{timestamp}] ')}c"
+            level_end = f"{start_index} + {len(f'[{timestamp}] {level_formatted}')}c"
+            
+            if level.upper() in color_map:
+                self.terminal.tag_add(level, level_start, level_end)
+                self.terminal.tag_configure(level, foreground=color_map[level.upper()], font=('Segoe UI', 9, 'bold'))
+            
+            self.terminal.configure(state='disabled')
+            self.terminal.see(tk.END)
+        except:
+            # Fallback to simple insert if coloring fails
+            self.terminal.insert(tk.END, log_entry)
+            self.terminal.see(tk.END)
+        
+        # Enhanced file logging with more context
+        detailed_message = f"{date_stamp} {timestamp} | {level.upper():7} | {message}"
+        
         if level == "ERROR":
-            self.logger.error(message)
+            self.logger.error(detailed_message)
         elif level == "WARNING":
-            self.logger.warning(message)
+            self.logger.warning(detailed_message)
         elif level == "SUCCESS":
-            self.logger.info(f"SUCCESS: {message}")
+            self.logger.info(f"SUCCESS | {detailed_message}")
+        elif level == "DEBUG":
+            self.logger.debug(detailed_message)
         else:
-            self.logger.info(message)
+            self.logger.info(detailed_message)
             
     def clear_terminal(self):
         """Clear the terminal output window."""
@@ -318,11 +527,15 @@ class InvokeX:
         apps_frame.grid_columnconfigure(0, weight=1)
         apps_frame.grid_rowconfigure(2, weight=1)
         
-        # Header frame with background
-        header_frame = tk.Frame(apps_frame, bg='#ffffff', height=80)
+        # Header frame with modern gradient-like background
+        header_frame = tk.Frame(apps_frame, bg='#ffffff', height=80, relief='flat', bd=0)
         header_frame.grid(row=0, column=0, sticky='ew', padx=0, pady=0)
         header_frame.grid_propagate(False)
         header_frame.grid_columnconfigure(0, weight=1)
+        
+        # Add subtle shadow effect
+        shadow_frame = tk.Frame(apps_frame, bg='#e9ecef', height=2)
+        shadow_frame.grid(row=1, column=0, sticky='ew', padx=0, pady=0)
         
         # Title in header
         title_label = tk.Label(header_frame, text="Application Installer", 
@@ -380,12 +593,12 @@ class InvokeX:
                                "PowerEventProvider", 
                                "Power management event provider",
                                "Download & Install",
-                                             "GitHub",
-                                             "View Power Logs",
+                               "GitHub",
+                               "View Power Logs",
                                "https://github.com/GoblinRules/powereventprovider",
-                                             lambda: self.download_and_install_msi("https://github.com/GoblinRules/powereventprovider/releases/download/V1.1/PowerEventProviderSetup.msi"),
-                                             lambda: webbrowser.open("https://github.com/GoblinRules/powereventprovider"),
-                                             lambda: self.view_power_logs())
+                               lambda: self.download_and_install_msi("https://github.com/GoblinRules/powereventprovider/releases/download/V1.1/PowerEventProviderSetup.msi"),
+                               lambda: webbrowser.open("https://github.com/GoblinRules/powereventprovider"),
+                               lambda: self.view_power_logs())
         
         # App 4: CTT WinUtil
         self.create_app_section(apps_container, 
@@ -393,7 +606,7 @@ class InvokeX:
                                "Windows utility collection",
                                "Run CTT WinUtil",
                                "https://github.com/ChrisTitusTech/winutil",
-                               lambda: self.run_powershell_command('irm "https://christitus.com/win" | iex'))
+                               lambda: self.run_ctt_winutil())
         
         # App 5: MASS
         self.create_app_section(apps_container, 
@@ -461,11 +674,15 @@ class InvokeX:
         tweaks_frame.grid_columnconfigure(0, weight=1)
         tweaks_frame.grid_rowconfigure(2, weight=1)
         
-        # Header frame with background (matching apps tab)
-        header_frame = tk.Frame(tweaks_frame, bg='#ffffff', height=80)
+        # Header frame with modern gradient-like background (matching apps tab)
+        header_frame = tk.Frame(tweaks_frame, bg='#ffffff', height=80, relief='flat', bd=0)
         header_frame.grid(row=0, column=0, sticky='ew', padx=0, pady=0)
         header_frame.grid_propagate(False)
         header_frame.grid_columnconfigure(0, weight=1)
+        
+        # Add subtle shadow effect
+        shadow_frame = tk.Frame(tweaks_frame, bg='#e9ecef', height=2)
+        shadow_frame.grid(row=1, column=0, sticky='ew', padx=0, pady=0)
         
         # Title in header
         title_label = tk.Label(header_frame, text="System Tweaks", 
@@ -563,10 +780,10 @@ class InvokeX:
                                                "Create Admin Account",
                                                "Create account called 'Admin' that is a member of Administrators & Remote Desktop Users",
                                                "Create Account",
-                                               "Remove Account",
+                                               "Manage Users",
                                                "Check Status",
                                                lambda: self.create_admin_account(),
-                                               lambda: self.remove_admin_account(),
+                                               lambda: self.open_user_management(),
                                                lambda: self.check_admin_account_status())
         
         # Tweak 7: Enable Remote Desktop
@@ -1110,7 +1327,7 @@ class InvokeX:
     
     def create_app_section(self, parent, title, description, button_text, github_url, install_func):
         """
-        Create a section for an individual application.
+        Create a section for an individual application with modern styling.
         
         Args:
             parent: The parent widget
@@ -1120,24 +1337,30 @@ class InvokeX:
             github_url (str): GitHub repository URL
             install_func: Function to call when install button is clicked
         """
-        # Container for each app (smaller size)
-        app_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
-        app_frame.pack(fill='x', pady=6, padx=8)
+        # Container for each app with modern card styling (matching tweaks)
+        app_frame = tk.Frame(parent, bg='#ffffff', relief='flat', bd=1)
+        app_frame.pack(fill='x', pady=6, padx=0)
         
-        # App info
-        info_frame = tk.Frame(app_frame, bg='white')
-        info_frame.pack(fill='x', padx=12, pady=10)
+        # Add subtle border (matching tweaks)
+        border_frame = tk.Frame(app_frame, bg='#dee2e6', height=1)
+        border_frame.pack(fill='x', side='bottom')
         
-        # Title and description
+        # App info with consistent padding (matching tweaks)
+        info_frame = tk.Frame(app_frame, bg='#ffffff')
+        info_frame.pack(fill='x', padx=25, pady=20)
+        
+        # Title with consistent typography (matching tweaks)
         title_label = tk.Label(info_frame, text=title, 
-                              font=('Segoe UI', 11, 'bold'), 
-                              bg='white', fg='#2c3e50', anchor='w')
+                              font=('Segoe UI', 13, 'bold'), 
+                              bg='#ffffff', fg='#212529', anchor='w')
         title_label.pack(anchor='w')
         
+        # Description with consistent spacing (matching tweaks)
         desc_label = tk.Label(info_frame, text=description, 
-                             font=('Segoe UI', 8), 
-                             bg='white', fg='#7f8c8d', anchor='w')
-        desc_label.pack(anchor='w', pady=(3, 0))
+                             font=('Segoe UI', 9), 
+                             bg='#ffffff', fg='#6c757d', anchor='w',
+                             wraplength=800)
+        desc_label.pack(anchor='w', pady=(6, 0))
         
         # Status indicator - special handling for different apps
         # Use lazy loading for better performance
@@ -1175,9 +1398,20 @@ class InvokeX:
             # Check installation in background
             self.root.after(50, lambda: self.check_app_async(title, status_label))
         
-        # Buttons frame
-        buttons_frame = tk.Frame(info_frame, bg='white')
-        buttons_frame.pack(fill='x', pady=(10, 0))
+        # Buttons frame with consistent alignment (matching tweaks)
+        buttons_frame = tk.Frame(info_frame, bg='#ffffff')
+        buttons_frame.pack(fill='x', pady=(18, 0))
+        
+        # Consistent button styling (matching tweaks)
+        button_style = {
+            'font': ('Segoe UI', 9, 'bold'),
+            'relief': 'flat',
+            'padx': 24,
+            'pady': 10,
+            'cursor': 'hand2',
+            'bd': 0,
+            'width': 15  # Fixed width for alignment
+        }
         
         # Create wrapper function that refreshes status after installation
         def install_and_refresh():
@@ -1186,14 +1420,12 @@ class InvokeX:
             if status_label:
                 self.root.after(1000, lambda: self.refresh_app_status(title, status_label))
         
-        # Install button
+        # Install button (Primary action)
         install_btn = tk.Button(buttons_frame, text=button_text, 
                                command=install_and_refresh,
-                               bg='#3498db', fg='white', 
-                               font=('Segoe UI', 8, 'bold'),
-                               relief='flat', padx=15, pady=5,
-                               cursor='hand2')
-        install_btn.pack(side='left', padx=(0, 8))
+                               bg='#0d6efd', fg='white',
+                               **button_style)
+        install_btn.pack(side='left', padx=(0, 12))
         
         # Determine button label based on URL
         if "github.com" in github_url.lower():
@@ -1207,20 +1439,18 @@ class InvokeX:
         else:
             button_label = "Homepage"
         
-        # Website/GitHub button
+        # Website/GitHub button (Secondary action)
         website_btn = tk.Button(buttons_frame, text=button_label, 
                               command=lambda: webbrowser.open(github_url),
-                              bg='#2c3e50', fg='white', 
-                              font=('Segoe UI', 8, 'bold'),
-                              relief='flat', padx=15, pady=5,
-                              cursor='hand2')
+                              bg='#6c757d', fg='white',
+                              **button_style)
         website_btn.pack(side='left')
         
-        # Hover effects
-        install_btn.bind('<Enter>', lambda e: install_btn.configure(bg='#2980b9'))
-        install_btn.bind('<Leave>', lambda e: install_btn.configure(bg='#3498db'))
-        website_btn.bind('<Enter>', lambda e: website_btn.configure(bg='#34495e'))
-        website_btn.bind('<Leave>', lambda e: website_btn.configure(bg='#2c3e50'))
+        # Consistent hover effects (matching tweaks)
+        install_btn.bind('<Enter>', lambda e: install_btn.configure(bg='#0b5ed7'))
+        install_btn.bind('<Leave>', lambda e: install_btn.configure(bg='#0d6efd'))
+        website_btn.bind('<Enter>', lambda e: website_btn.configure(bg='#5a6268'))
+        website_btn.bind('<Leave>', lambda e: website_btn.configure(bg='#6c757d'))
     
     def create_app_section_with_3_buttons(self, parent, title, description, btn1_text, btn2_text, btn3_text, btn1_url, install_func, btn2_func, btn3_func):
         """
@@ -1238,63 +1468,74 @@ class InvokeX:
             btn2_func: Function to call when second button is clicked
             btn3_func: Function to call when third button is clicked
         """
-        # Container for each app (smaller size)
-        app_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
-        app_frame.pack(fill='x', pady=6, padx=8)
+        # Container for each app with modern card styling (matching tweaks)
+        app_frame = tk.Frame(parent, bg='#ffffff', relief='flat', bd=1)
+        app_frame.pack(fill='x', pady=6, padx=0)
         
-        # App info
-        info_frame = tk.Frame(app_frame, bg='white')
-        info_frame.pack(fill='x', padx=12, pady=10)
+        # Add subtle border (matching tweaks)
+        border_frame = tk.Frame(app_frame, bg='#dee2e6', height=1)
+        border_frame.pack(fill='x', side='bottom')
         
-        # Title and description
+        # App info with consistent padding (matching tweaks)
+        info_frame = tk.Frame(app_frame, bg='#ffffff')
+        info_frame.pack(fill='x', padx=25, pady=20)
+        
+        # Title with consistent typography (matching tweaks)
         title_label = tk.Label(info_frame, text=title, 
-                              font=('Segoe UI', 11, 'bold'), 
-                              bg='white', fg='#2c3e50', anchor='w')
+                              font=('Segoe UI', 13, 'bold'), 
+                              bg='#ffffff', fg='#212529', anchor='w')
         title_label.pack(anchor='w')
         
+        # Description with consistent spacing (matching tweaks)
         desc_label = tk.Label(info_frame, text=description, 
-                             font=('Segoe UI', 8), 
-                             bg='white', fg='#7f8c8d', anchor='w')
-        desc_label.pack(anchor='w', pady=(3, 0))
+                             font=('Segoe UI', 9), 
+                             bg='#ffffff', fg='#6c757d', anchor='w',
+                             wraplength=800)
+        desc_label.pack(anchor='w', pady=(6, 0))
         
-        # Buttons frame
-        buttons_frame = tk.Frame(info_frame, bg='white')
-        buttons_frame.pack(fill='x', pady=(10, 0))
+        # Buttons frame with consistent alignment (matching tweaks)
+        buttons_frame = tk.Frame(info_frame, bg='#ffffff')
+        buttons_frame.pack(fill='x', pady=(18, 0))
         
-        # Button 1 (Install)
+        # Consistent button styling (matching tweaks)
+        button_style = {
+            'font': ('Segoe UI', 9, 'bold'),
+            'relief': 'flat',
+            'padx': 24,
+            'pady': 10,
+            'cursor': 'hand2',
+            'bd': 0,
+            'width': 15  # Fixed width for alignment
+        }
+        
+        # Button 1 (Install) - Primary action
         install_btn = tk.Button(buttons_frame, text=btn1_text, 
                                command=install_func,
-                               bg='#3498db', fg='white', 
-                               font=('Segoe UI', 8, 'bold'),
-                               relief='flat', padx=15, pady=5,
-                               cursor='hand2')
-        install_btn.pack(side='left', padx=(0, 8))
+                               bg='#0d6efd', fg='white',
+                               **button_style)
+        install_btn.pack(side='left', padx=(0, 12))
         
-        # Button 2
+        # Button 2 (GitHub/Link button - consistent with other Link buttons)
         btn2 = tk.Button(buttons_frame, text=btn2_text, 
                          command=btn2_func,
-                         bg='#27ae60', fg='white', 
-                         font=('Segoe UI', 8, 'bold'),
-                         relief='flat', padx=15, pady=5,
-                         cursor='hand2')
-        btn2.pack(side='left', padx=(0, 8))
+                         bg='#6c757d', fg='white',
+                         **button_style)
+        btn2.pack(side='left', padx=(0, 12))
         
-        # Button 3
+        # Button 3 (Logs button - green)
         btn3 = tk.Button(buttons_frame, text=btn3_text, 
                          command=btn3_func,
-                         bg='#2c3e50', fg='white', 
-                         font=('Segoe UI', 8, 'bold'),
-                         relief='flat', padx=15, pady=5,
-                         cursor='hand2')
+                         bg='#198754', fg='white',
+                         **button_style)
         btn3.pack(side='left')
         
-        # Hover effects
-        install_btn.bind('<Enter>', lambda e: install_btn.configure(bg='#2980b9'))
-        install_btn.bind('<Leave>', lambda e: install_btn.configure(bg='#3498db'))
-        btn2.bind('<Enter>', lambda e: btn2.configure(bg='#229954'))
-        btn2.bind('<Leave>', lambda e: btn2.configure(bg='#27ae60'))
-        btn3.bind('<Enter>', lambda e: btn3.configure(bg='#34495e'))
-        btn3.bind('<Leave>', lambda e: btn3.configure(bg='#2c3e50'))
+        # Consistent hover effects (matching tweaks)
+        install_btn.bind('<Enter>', lambda e: install_btn.configure(bg='#0b5ed7'))
+        install_btn.bind('<Leave>', lambda e: install_btn.configure(bg='#0d6efd'))
+        btn2.bind('<Enter>', lambda e: btn2.configure(bg='#5a6268'))
+        btn2.bind('<Leave>', lambda e: btn2.configure(bg='#6c757d'))
+        btn3.bind('<Enter>', lambda e: btn3.configure(bg='#157347'))
+        btn3.bind('<Leave>', lambda e: btn3.configure(bg='#198754'))
     
     def get_windows_version(self):
         """Get the current Windows version for user guidance."""
@@ -1380,6 +1621,55 @@ class InvokeX:
                 messagebox.showerror("Error", error_msg)
         except Exception as e:
             error_msg = f"Failed to execute command: {str(e)}"
+            self.log_to_terminal(error_msg, "ERROR")
+            messagebox.showerror("Error", error_msg)
+    
+    def run_ctt_winutil(self):
+        """
+        Run CTT WinUtil in a separate PowerShell window to prevent crashes.
+        
+        This method spawns CTT WinUtil in its own PowerShell window, preventing
+        interference with the main InvokeX application.
+        """
+        try:
+            self.log_to_terminal("Launching CTT WinUtil in separate PowerShell window...", "INFO")
+            
+            # Ask for confirmation
+            confirm = messagebox.askyesno(
+                "Launch CTT WinUtil", 
+                "This will open CTT WinUtil in a separate PowerShell window.\n\n"
+                "The utility will run independently from InvokeX.\n\n"
+                "Continue?"
+            )
+            
+            if not confirm:
+                self.log_to_terminal("CTT WinUtil launch cancelled by user", "INFO")
+                return
+            
+            # Command to run CTT WinUtil in a new PowerShell window
+            command = [
+                'powershell',
+                '-Command',
+                'Start-Process',
+                'powershell',
+                '-ArgumentList',
+                '"-NoExit", "-Command", "Write-Host \'Launching CTT WinUtil...\' -ForegroundColor Green; irm https://christitus.com/win | iex"',
+                '-Verb', 'RunAs'  # Request elevation
+            ]
+            
+            # Start the process without waiting for it to complete
+            subprocess.Popen(command, shell=False)
+            
+            self.log_to_terminal("CTT WinUtil launched successfully in separate window!", "SUCCESS")
+            messagebox.showinfo(
+                "CTT WinUtil Launched", 
+                "CTT WinUtil has been launched in a separate PowerShell window.\n\n"
+                "You may see a UAC prompt for administrator privileges.\n\n"
+                "The utility will run independently from InvokeX."
+            )
+            
+        except Exception as e:
+            error_msg = f"Failed to launch CTT WinUtil: {str(e)}"
             self.log_to_terminal(error_msg, "ERROR")
             messagebox.showerror("Error", error_msg)
     
@@ -2165,26 +2455,53 @@ class InvokeX:
                 
             try:
                 self.log_to_terminal("Retrieving power logs...", "INFO")
-                result = subprocess.run(['powershell', '-Command', 'get-eventlog -logname Application -source PowerEventProvider'], 
-                                      capture_output=True, text=True, timeout=30)
+                # Try multiple methods to get PowerEventProvider logs
+                result = None
+                
+                # Method 1: Try Get-WinEvent (more modern)
+                ps_command1 = 'Get-WinEvent -FilterHashtable @{LogName="Application"; ProviderName="PowerEventProvider"} -MaxEvents 100 | Format-Table TimeCreated, Id, LevelDisplayName, Message -AutoSize'
+                result1 = subprocess.run(['powershell', '-Command', ps_command1], 
+                                       capture_output=True, text=True, timeout=30)
                 
                 text_widget.delete('1.0', tk.END)
                 
-                if result.returncode == 0:
-                    if result.stdout.strip():
-                        text_widget.insert('1.0', result.stdout)
-                        self.log_to_terminal("Power logs retrieved successfully!", "SUCCESS")
-                    else:
-                        text_widget.insert('1.0', "No PowerEventProvider logs found.\n\nThis could mean:\n• PowerEventProvider is not installed\n• No power events have been logged yet\n• The service is not running")
-                        self.log_to_terminal("PowerEventProvider logs not found", "WARNING")
+                if result1.returncode == 0 and result1.stdout.strip():
+                    text_widget.insert('1.0', "PowerEventProvider Event Logs:\n" + "="*50 + "\n\n" + result1.stdout)
+                    self.log_to_terminal("Power logs retrieved successfully using Get-WinEvent!", "SUCCESS")
                 else:
-                    error_text = f"Error retrieving logs:\n{result.stderr}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check if the service is running"
-                    text_widget.insert('1.0', error_text)
-                    self.log_to_terminal("Error retrieving power logs", "ERROR")
+                    # Method 2: Try Get-EventLog (legacy)
+                    ps_command2 = 'Get-EventLog -LogName Application -Source PowerEventProvider -Newest 50 | Format-Table TimeGenerated, EntryType, Message -AutoSize'
+                    result2 = subprocess.run(['powershell', '-Command', ps_command2], 
+                                           capture_output=True, text=True, timeout=30)
+                    
+                    if result2.returncode == 0 and result2.stdout.strip():
+                        text_widget.insert('1.0', "PowerEventProvider Event Logs (Legacy):\n" + "="*50 + "\n\n" + result2.stdout)
+                        self.log_to_terminal("Power logs retrieved successfully using Get-EventLog!", "SUCCESS")
+                    else:
+                        # Method 3: Check if service exists
+                        service_check = subprocess.run(['sc', 'query', 'PowerEventProvider'], 
+                                                     capture_output=True, text=True, timeout=10)
+                        
+                        if "RUNNING" in service_check.stdout or "STOPPED" in service_check.stdout:
+                            text_widget.insert('1.0', "PowerEventProvider service is installed but no logs found yet.\n\n" +
+                                             "Service Status:\n" + service_check.stdout + "\n\n" +
+                                             "This could mean:\n" +
+                                             "• No power events have been logged yet\n" +
+                                             "• The service needs to be restarted\n" +
+                                             "• Logs may be in a different location")
+                        else:
+                            text_widget.insert('1.0', "PowerEventProvider is not installed or service not found.\n\n" +
+                                             "To install PowerEventProvider:\n" +
+                                             "1. Go to the Applications tab\n" +
+                                             "2. Click 'Download & Install' for PowerEventProvider\n" +
+                                             "3. Run the installer as Administrator\n\n" +
+                                             "Error details:\n" + (result1.stderr if result1.stderr else 'No additional error information'))
+                        
+                        self.log_to_terminal("PowerEventProvider logs not found - service may not be installed", "WARNING")
                         
             except Exception as e:
                 text_widget.delete('1.0', tk.END)
-                error_text = f"Error retrieving logs: {str(e)}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check your PowerShell execution policy"
+                error_text = f"Error retrieving logs: {str(e)}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check your PowerShell execution policy\n• Try running InvokeX as Administrator"
                 text_widget.insert('1.0', error_text)
                 self.log_to_terminal(f"Error retrieving power logs: {str(e)}", "ERROR")
             
@@ -2304,15 +2621,43 @@ class InvokeX:
             self.log_to_terminal(f"Installing {app_name} with elevated privileges...", "INFO")
             
             try:
-                # Handle different installer types
-                timeout_seconds = 120 if "mumu" in app_name.lower() else 300
-                
-                if "ninite" in app_name.lower():
+                # Handle different installer types with special handling for MuMu
+                if "mumu" in app_name.lower():
+                    # MuMu requires special handling to prevent freezing
+                    self.log_to_terminal("Starting MuMu installer in background to prevent freezing...", "INFO")
+                    
+                    # Ask user for confirmation first
+                    confirm = messagebox.askyesno(
+                        "Install MuMu", 
+                        "MuMu installer will run in the background to prevent InvokeX from freezing.\n\n"
+                        "The installer will open independently. Please complete the installation manually.\n\n"
+                        "Continue?"
+                    )
+                    
+                    if not confirm:
+                        self.log_to_terminal("MuMu installation cancelled by user", "INFO")
+                        return
+                    
+                    # Start MuMu installer without waiting (prevents freezing)
+                    subprocess.Popen([filename], shell=False)
+                    
+                    self.log_to_terminal("MuMu installer launched in background", "SUCCESS")
+                    messagebox.showinfo(
+                        "MuMu Installation Started", 
+                        "MuMu installer has been launched in the background.\n\n"
+                        "Please complete the installation in the MuMu installer window.\n\n"
+                        "InvokeX will remain responsive during the installation."
+                    )
+                    return  # Exit early to prevent further processing
+                    
+                elif "ninite" in app_name.lower():
                     # Ninite installers work best when run directly without /silent flag
                     self.log_to_terminal("Running Ninite installer directly (no silent mode)...", "INFO")
+                    timeout_seconds = 300
                     result = subprocess.run([filename], capture_output=True, text=True, timeout=timeout_seconds)
                 else:
                     # Use Start-Process for other installers with elevated privileges
+                    timeout_seconds = 300
                     install_cmd = f'Start-Process -FilePath "{filename}" -Verb RunAs -Wait'
                     result = subprocess.run([
                         "powershell", "-ExecutionPolicy", "Bypass", "-Command", install_cmd
@@ -2499,13 +2844,13 @@ class InvokeX:
             messagebox.showerror("Error", error_msg)
 
     def restart_system_10s(self):
-        """Restart the system after a 10 second countdown."""
-        self.log_to_terminal("Initiating system restart in 10 seconds...", "warning")
+        """Restart the system after a 15 second countdown."""
+        self.log_to_terminal("Initiating system restart in 15 seconds...", "warning")
         
         # Show confirmation dialog
         confirm = messagebox.askyesno(
             "Confirm Restart", 
-            "Are you sure you want to restart the system in 10 seconds?\n\n"
+            "Are you sure you want to restart the system in 15 seconds?\n\n"
             "Make sure to save any open work before proceeding."
         )
         
@@ -2544,7 +2889,7 @@ class InvokeX:
         countdown_label.pack(pady=(20, 10))
         
         # Time label
-        time_label = tk.Label(countdown_window, text="10", 
+        time_label = tk.Label(countdown_window, text="15", 
                              font=('Segoe UI', 24, 'bold'), fg='#e74c3c')
         time_label.pack(pady=(0, 20))
         
@@ -2555,7 +2900,7 @@ class InvokeX:
         cancel_btn.pack()
         
         # Start countdown
-        self.countdown_seconds = 10
+        self.countdown_seconds = 15
         self.countdown_window = countdown_window
         self.time_label = time_label
         self.countdown_restart()
@@ -2583,6 +2928,31 @@ class InvokeX:
         if hasattr(self, 'countdown_seconds'):
             delattr(self, 'countdown_seconds')
         window.destroy()
+    
+    def cancel_shutdown(self, window):
+        """Cancel the system shutdown."""
+        self.log_to_terminal("System shutdown cancelled by user.", "info")
+        if hasattr(self, 'countdown_seconds'):
+            delattr(self, 'countdown_seconds')
+        window.destroy()
+    
+    def countdown_shutdown(self):
+        """Handle the countdown for system shutdown."""
+        if hasattr(self, 'countdown_seconds') and self.countdown_seconds > 0:
+            self.time_label.config(text=str(self.countdown_seconds))
+            self.countdown_seconds -= 1
+            
+            if self.countdown_seconds >= 0:
+                self.root.after(1000, self.countdown_shutdown)
+            else:
+                # Time's up, proceed with shutdown
+                self.countdown_window.destroy()
+                try:
+                    subprocess.run(["shutdown", "/s", "/t", "0"], capture_output=True, timeout=30)
+                    self.log_to_terminal("Shutdown command sent successfully.", "success")
+                except Exception as e:
+                    self.log_to_terminal(f"Failed to shutdown system: {str(e)}", "error")
+                    messagebox.showerror("Shutdown Failed", f"Failed to shutdown system: {str(e)}")
 
     def set_chrome_as_default(self):
         """Set Google Chrome as the default browser."""
@@ -2720,13 +3090,13 @@ class InvokeX:
         # This would clear the results display if we had a results window
     
     def shutdown_system(self):
-        """Shutdown the system immediately."""
-        self.log_to_terminal("Initiating system shutdown...", "warning")
+        """Shutdown the system after a 15 second countdown."""
+        self.log_to_terminal("Initiating system shutdown in 15 seconds...", "warning")
         
         # Show confirmation dialog
         confirm = messagebox.askyesno(
             "Confirm Shutdown", 
-            "Are you sure you want to shutdown the system?\n\n"
+            "Are you sure you want to shutdown the system in 15 seconds?\n\n"
             "Make sure to save any open work before proceeding."
         )
         
@@ -2734,12 +3104,52 @@ class InvokeX:
             self.log_to_terminal("System shutdown cancelled by user.", "info")
             return
         
+        # Show countdown dialog
+        countdown_window = tk.Toplevel(self.root)
+        countdown_window.title("System Shutdown")
+        countdown_window.geometry("300x150")
+        countdown_window.resizable(False, False)
+        
+        # Center the window
+        countdown_window.transient(self.root)
+        countdown_window.grab_set()
+        
+        # Set icon for the countdown window if available
         try:
-            subprocess.run(["shutdown", "/s", "/t", "0"], capture_output=True, timeout=30)
-            self.log_to_terminal("Shutdown command sent successfully.", "success")
-        except Exception as e:
-            self.log_to_terminal(f"Failed to shutdown system: {str(e)}", "error")
-            messagebox.showerror("Shutdown Failed", f"Failed to shutdown system: {str(e)}")
+            icon_paths = [
+                "icon.ico",
+                "C:\\Tools\\InvokeX\\icon.ico",
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.ico")
+            ]
+            
+            for icon_path in icon_paths:
+                if os.path.exists(icon_path):
+                    countdown_window.iconbitmap(icon_path)
+                    break
+        except:
+            pass
+        
+        # Countdown label
+        countdown_label = tk.Label(countdown_window, text="System will shutdown in:", 
+                                  font=('Segoe UI', 12, 'bold'))
+        countdown_label.pack(pady=(20, 10))
+        
+        # Time label
+        time_label = tk.Label(countdown_window, text="15", 
+                             font=('Segoe UI', 24, 'bold'), fg='#e74c3c')
+        time_label.pack(pady=(0, 20))
+        
+        # Cancel button
+        cancel_btn = tk.Button(countdown_window, text="Cancel Shutdown", 
+                              command=lambda: self.cancel_shutdown(countdown_window),
+                              bg='#e74c3c', fg='white', font=('Segoe UI', 10, 'bold'))
+        cancel_btn.pack()
+        
+        # Start countdown
+        self.countdown_seconds = 15
+        self.countdown_window = countdown_window
+        self.time_label = time_label
+        self.countdown_shutdown()
     
     def cancel_power_action(self):
         """Cancel any pending power actions."""
@@ -3028,8 +3438,10 @@ class InvokeX:
                 messagebox.showinfo("Success", 
                     "Admin account created successfully!\n\n"
                     "Account: Admin\n"
+                    "Password: No password set (SECURITY RISK!)\n"
                     "Groups: Administrators, Remote Desktop Users\n\n"
-                    "Note: Please set a password for this account.")
+                    "IMPORTANT: Use the 'Manage Users' button to set a strong password.\n"
+                    "An account without a password is a major security vulnerability.")
             else:
                 if "already exists" in result1.stderr.lower():
                     messagebox.showinfo("Account Exists", "Admin account already exists!")
@@ -3041,42 +3453,43 @@ class InvokeX:
             self.log_to_terminal(f"Error creating Admin account: {str(e)}", "error")
             messagebox.showerror("Error", f"Error: {str(e)}")
     
-    def remove_admin_account(self):
-        """Remove the Admin account."""
-        self.log_to_terminal("Removing Admin account...", "info")
+    def open_user_management(self):
+        """Open Windows User Management (mmc.exe > Local Users and Groups > Users)."""
+        self.log_to_terminal("Opening User Management console...", "info")
         
         try:
             import ctypes
             if not ctypes.windll.shell32.IsUserAnAdmin():
                 messagebox.showwarning("Administrator Required", 
-                    "This operation requires administrator privileges.")
+                    "User management requires administrator privileges.\n\n"
+                    "Please run InvokeX as Administrator to manage users.")
                 return
             
-            # Confirm deletion
-            confirm = messagebox.askyesno("Confirm Deletion", 
-                "Are you sure you want to delete the Admin account?\n\n"
-                "This action cannot be undone.")
+            # Show information about what will open
+            messagebox.showinfo(
+                "Opening User Management", 
+                "Opening Microsoft Management Console (MMC) with Local Users and Groups.\n\n"
+                "This will allow you to:\n"
+                "• View all user accounts\n"
+                "• Set/change passwords\n"
+                "• Modify user properties\n"
+                "• Manage group memberships\n\n"
+                "Navigate to: Local Users and Groups > Users"
+            )
             
-            if not confirm:
-                return
+            # Open MMC with Local Users and Groups snap-in
+            # Using lusrmgr.msc directly opens Local Users and Groups
+            subprocess.Popen(['mmc', 'lusrmgr.msc'], shell=False)
             
-            # Delete user account
-            cmd = 'net user Admin /delete'
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            self.log_to_terminal("User Management console opened successfully", "success")
             
-            if result.returncode == 0:
-                self.log_to_terminal("Admin account removed", "success")
-                messagebox.showinfo("Success", "Admin account has been removed!")
-            else:
-                if "not found" in result.stderr.lower():
-                    messagebox.showinfo("Account Not Found", "Admin account does not exist!")
-                else:
-                    self.log_to_terminal(f"Failed to remove Admin account: {result.stderr}", "error")
-                    messagebox.showerror("Failed", f"Failed to remove Admin account: {result.stderr}")
-                
         except Exception as e:
-            self.log_to_terminal(f"Error removing Admin account: {str(e)}", "error")
-            messagebox.showerror("Error", f"Error: {str(e)}")
+            self.log_to_terminal(f"Error opening User Management: {str(e)}", "error")
+            messagebox.showerror("Error", f"Failed to open User Management: {str(e)}\n\n"
+                                          "You can manually open it by:\n"
+                                          "1. Press Win+R\n"
+                                          "2. Type 'lusrmgr.msc'\n"
+                                          "3. Press Enter")
     
     def check_admin_account_status(self):
         """Check if Admin account exists and its group memberships."""
@@ -3146,17 +3559,38 @@ class InvokeX:
                 success_count += 1
                 self.log_to_terminal("Network Level Authentication disabled", "success")
             
-            if success_count >= 2:
+            # Enable "keep my PC awake for connections when plugged in" feature
+            # This prevents the PC from going to sleep when RDP connections are active
+            cmd4 = 'powercfg /setacvalueindex SCHEME_CURRENT SUB_SLEEP STANDBYIDLE 0'
+            result4 = subprocess.run(cmd4, shell=True, capture_output=True, text=True, timeout=30)
+            if result4.returncode == 0:
+                # Apply the power scheme
+                cmd5 = 'powercfg /setactive SCHEME_CURRENT'
+                result5 = subprocess.run(cmd5, shell=True, capture_output=True, text=True, timeout=30)
+                if result5.returncode == 0:
+                    success_count += 1
+                    self.log_to_terminal("PC will stay awake for RDP connections when plugged in", "success")
+            
+            # Also set connected standby to never sleep when plugged in
+            cmd6 = 'powercfg /setacvalueindex SCHEME_CURRENT SUB_SLEEP CONNECTEDIDLE 0'
+            result6 = subprocess.run(cmd6, shell=True, capture_output=True, text=True, timeout=30)
+            if result6.returncode == 0:
+                subprocess.run(['powercfg', '/setactive', 'SCHEME_CURRENT'], capture_output=True, text=True, timeout=10)
+                self.log_to_terminal("Connected standby disabled when plugged in", "success")
+            
+            if success_count >= 3:
                 messagebox.showinfo("Success", 
                     "Remote Desktop has been enabled!\n\n"
                     "Settings applied:\n"
                     "• Remote Desktop connections enabled\n"
                     "• Firewall rules configured\n"
-                    "• Network Level Authentication disabled\n\n"
+                    "• Network Level Authentication disabled\n"
+                    "• PC will stay awake for connections when plugged in\n\n"
                     "You can now connect to this computer remotely.")
             else:
                 messagebox.showwarning("Partial Success", 
-                    "Remote Desktop partially enabled. Check terminal for details.")
+                    "Remote Desktop partially enabled. Check terminal for details.\n\n"
+                    "Some power management settings may not have been applied.")
                 
         except Exception as e:
             self.log_to_terminal(f"Error enabling Remote Desktop: {str(e)}", "error")
