@@ -194,54 +194,89 @@ class InvokeX:
     
     def install_python_system(self):
         """
-        Install Python using the same method as IP Tray App installation.
+        Install Python with enhanced PATH management and verification.
         """
         try:
-            self.log_to_terminal("Starting Python installation...", "INFO")
+            self.log_to_terminal("Starting enhanced Python installation...", "INFO")
             
-            # Try winget first (modern Windows package manager)
+            # Method 1: Try winget first (modern Windows package manager)
             try:
                 self.log_to_terminal("Installing Python using Windows Package Manager (winget)...", "INFO")
                 python_install = subprocess.run([
                     'winget', 'install', 'Python.Python.3.12', 
-                    '--accept-source-agreements', '--accept-package-agreements'
+                    '--accept-source-agreements', '--accept-package-agreements', '--silent'
                 ], capture_output=True, text=True, timeout=300)
                 
                 if python_install.returncode == 0:
                     self.log_to_terminal("Python installed successfully using winget!", "SUCCESS")
                     
-                    # Refresh environment in current session
-                    self.refresh_environment()
+                    # Wait for installation to complete
+                    import time
+                    time.sleep(5)
                     
-                    messagebox.showinfo(
-                        "Python Installed", 
-                        "Python has been installed successfully!\n\n"
-                        "You can now install Python-based applications.\n\n"
-                        "Note: You may need to restart InvokeX for all features to work properly."
-                    )
-                    
-                    self.python_available = True
-                    return
+                    # Force refresh environment and verify
+                    if self.verify_and_fix_python_installation():
+                        self.python_available = True
+                        return
                 else:
-                    self.log_to_terminal("winget installation failed, trying alternative method...", "WARNING")
+                    self.log_to_terminal(f"winget installation failed: {python_install.stderr}", "WARNING")
             
             except Exception as e:
                 self.log_to_terminal(f"winget not available or failed: {str(e)}", "WARNING")
             
-            # Alternative: Download from python.org
-            self.log_to_terminal("Downloading Python from python.org...", "INFO")
+            # Method 2: Download and install from python.org with enhanced options
+            self.log_to_terminal("Downloading Python from python.org with enhanced installation...", "INFO")
             python_url = "https://www.python.org/ftp/python/3.12.1/python-3.12.1-amd64.exe"
             python_installer = "python-installer.exe"
             
             import urllib.request
             urllib.request.urlretrieve(python_url, python_installer)
-            self.log_to_terminal("Python installer downloaded. Installing...", "INFO")
+            self.log_to_terminal("Python installer downloaded. Installing with enhanced options...", "INFO")
             
-            # Install Python silently with PATH addition
-            install_result = subprocess.run([
-                python_installer, '/quiet', 'InstallAllUsers=1', 'PrependPath=1', 
-                'Include_test=0'  # Skip test suite for faster installation
-            ], capture_output=True, text=True, timeout=600)
+            # Enhanced installation with multiple methods
+            install_methods = [
+                # Method 1: User installation with PATH
+                {
+                    'args': [python_installer, '/quiet', 'PrependPath=1', 'Include_test=0', 'SimpleInstall=1'],
+                    'name': 'User installation with PATH'
+                },
+                # Method 2: All users installation
+                {
+                    'args': [python_installer, '/quiet', 'InstallAllUsers=1', 'PrependPath=1', 'Include_test=0'],
+                    'name': 'All users installation'
+                },
+                # Method 3: Manual PATH setup
+                {
+                    'args': [python_installer, '/quiet', 'InstallAllUsers=0', 'Include_test=0'],
+                    'name': 'Basic installation (manual PATH)'
+                }
+            ]
+            
+            installation_success = False
+            
+            for method in install_methods:
+                self.log_to_terminal(f"Trying {method['name']}...", "INFO")
+                
+                install_result = subprocess.run(
+                    method['args'], 
+                    capture_output=True, text=True, timeout=600
+                )
+                
+                if install_result.returncode == 0:
+                    self.log_to_terminal(f"{method['name']} completed successfully!", "SUCCESS")
+                    
+                    # Wait for installation to settle
+                    import time
+                    time.sleep(3)
+                    
+                    # Verify and fix installation
+                    if self.verify_and_fix_python_installation():
+                        installation_success = True
+                        break
+                    else:
+                        self.log_to_terminal(f"{method['name']} succeeded but Python not accessible, trying next method...", "WARNING")
+                else:
+                    self.log_to_terminal(f"{method['name']} failed: {install_result.stderr}", "WARNING")
             
             # Clean up installer
             try:
@@ -249,26 +284,29 @@ class InvokeX:
             except:
                 pass
             
-            if install_result.returncode == 0:
-                self.log_to_terminal("Python installed successfully!", "SUCCESS")
-                self.refresh_environment()
-                
+            if installation_success:
                 messagebox.showinfo(
-                    "Python Installed", 
-                    "Python has been installed successfully!\n\n"
-                    "You can now install Python-based applications.\n\n"
-                    "Note: You may need to restart InvokeX for all features to work properly."
+                    "Python Installed Successfully", 
+                    "Python has been installed and configured successfully!\n\n"
+                    "Features now available:\n"
+                    "• Python-based applications can be installed\n"
+                    "• Python scripts will work properly\n"
+                    "• Desktop shortcuts will function correctly\n\n"
+                    "You can now use all Python-dependent features."
                 )
-                
                 self.python_available = True
             else:
-                self.log_to_terminal("Python installation failed", "ERROR")
+                self.log_to_terminal("All Python installation methods failed", "ERROR")
                 messagebox.showerror(
-                    "Installation Failed", 
-                    "Python could not be installed automatically.\n\n"
-                    "Please install Python manually from:\n"
-                    "https://www.python.org/downloads/\n\n"
-                    "Make sure to check 'Add Python to PATH' during installation."
+                    "Python Installation Failed", 
+                    "Python could not be installed automatically using any method.\n\n"
+                    "Please install Python manually:\n\n"
+                    "1. Go to https://www.python.org/downloads/\n"
+                    "2. Download Python 3.12 or later\n"
+                    "3. Run installer as Administrator\n"
+                    "4. IMPORTANT: Check 'Add Python to PATH'\n"
+                    "5. Restart InvokeX after installation\n\n"
+                    "This will fix desktop shortcut issues."
                 )
                 
         except Exception as e:
@@ -277,8 +315,144 @@ class InvokeX:
                 "Installation Error", 
                 f"An error occurred while installing Python: {str(e)}\n\n"
                 "Please install Python manually from:\n"
-                "https://www.python.org/downloads/"
+                "https://www.python.org/downloads/\n\n"
+                "Make sure to check 'Add Python to PATH' during installation."
             )
+    
+    def verify_and_fix_python_installation(self):
+        """
+        Verify Python installation and fix PATH issues.
+        
+        Returns:
+            bool: True if Python is working correctly, False otherwise
+        """
+        try:
+            self.log_to_terminal("Verifying Python installation...", "INFO")
+            
+            # First, refresh environment variables
+            self.refresh_environment()
+            
+            # Test 1: Direct python command
+            result = subprocess.run(['python', '--version'], 
+                                  capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                python_version = result.stdout.strip()
+                self.log_to_terminal(f"Python verified: {python_version}", "SUCCESS")
+                return True
+            
+            self.log_to_terminal("Python command failed, attempting to fix PATH...", "WARNING")
+            
+            # Method 2: Find Python installation and add to PATH
+            python_paths = self.find_python_installations()
+            
+            if python_paths:
+                self.log_to_terminal(f"Found Python installations: {python_paths}", "INFO")
+                
+                # Try to add to PATH
+                if self.add_python_to_path(python_paths[0]):
+                    # Test again after PATH fix
+                    result = subprocess.run(['python', '--version'], 
+                                          capture_output=True, text=True, timeout=10)
+                    
+                    if result.returncode == 0:
+                        python_version = result.stdout.strip()
+                        self.log_to_terminal(f"Python PATH fixed! Version: {python_version}", "SUCCESS")
+                        return True
+            
+            self.log_to_terminal("Could not verify or fix Python installation", "ERROR")
+            return False
+            
+        except Exception as e:
+            self.log_to_terminal(f"Error verifying Python installation: {str(e)}", "ERROR")
+            return False
+    
+    def find_python_installations(self):
+        """
+        Find Python installations on the system.
+        
+        Returns:
+            list: List of Python installation paths
+        """
+        python_paths = []
+        
+        # Common Python installation locations
+        search_paths = [
+            "C:\\Python*",
+            "C:\\Program Files\\Python*",
+            "C:\\Program Files (x86)\\Python*",
+            os.path.expanduser("~\\AppData\\Local\\Programs\\Python\\Python*"),
+            os.path.expanduser("~\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe"),
+            "C:\\Users\\*\\AppData\\Local\\Programs\\Python\\Python*"
+        ]
+        
+        import glob
+        
+        for search_path in search_paths:
+            try:
+                found = glob.glob(search_path)
+                for path in found:
+                    if os.path.isdir(path):
+                        # Check if python.exe exists in this directory
+                        python_exe = os.path.join(path, "python.exe")
+                        if os.path.exists(python_exe):
+                            python_paths.append(path)
+                    elif path.endswith("python.exe") and os.path.exists(path):
+                        python_paths.append(os.path.dirname(path))
+            except:
+                continue
+        
+        return python_paths
+    
+    def add_python_to_path(self, python_path):
+        """
+        Add Python installation to system PATH.
+        
+        Args:
+            python_path (str): Path to Python installation directory
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            self.log_to_terminal(f"Adding Python to PATH: {python_path}", "INFO")
+            
+            import winreg
+            
+            # Add both python.exe directory and Scripts directory
+            paths_to_add = [
+                python_path,
+                os.path.join(python_path, "Scripts")
+            ]
+            
+            # Get current PATH
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS) as key:
+                try:
+                    current_path, _ = winreg.QueryValueEx(key, "PATH")
+                except FileNotFoundError:
+                    current_path = ""
+                
+                # Add new paths if not already present
+                path_parts = current_path.split(';') if current_path else []
+                
+                for new_path in paths_to_add:
+                    if new_path not in path_parts:
+                        path_parts.append(new_path)
+                
+                # Update PATH
+                new_path_value = ';'.join(path_parts)
+                winreg.SetValueEx(key, "PATH", 0, winreg.REG_SZ, new_path_value)
+                
+                self.log_to_terminal("Python added to user PATH successfully", "SUCCESS")
+                
+                # Refresh current environment
+                os.environ['PATH'] = new_path_value + ';' + os.environ.get('PATH', '')
+                
+                return True
+                
+        except Exception as e:
+            self.log_to_terminal(f"Failed to add Python to PATH: {str(e)}", "ERROR")
+            return False
     
     def refresh_environment(self):
         """
@@ -1078,10 +1252,28 @@ class InvokeX:
                 # Check if PyAutoClicker is installed
                 return os.path.exists(os.path.expanduser("~\\AppData\\Local\\PyAutoClicker"))
             elif app_name == "PowerEventProvider":
-                # Check if PowerEventProvider service exists
-                result = subprocess.run(['sc', 'query', 'PowerEventProvider'], 
-                                      capture_output=True, text=True, timeout=10)
-                return "RUNNING" in result.stdout or "STOPPED" in result.stdout
+                # Check if PowerEventProvider is installed - check both installation directory and service
+                installation_paths = [
+                    "C:\\Program Files (x86)\\PowerEventProvider",
+                    "C:\\Program Files\\PowerEventProvider",
+                    "C:\\PowerEventProvider"
+                ]
+                
+                # First check if installation directory exists
+                for path in installation_paths:
+                    if os.path.exists(path):
+                        return True
+                
+                # Also check if service exists as secondary verification
+                try:
+                    result = subprocess.run(['sc', 'query', 'PowerEventProvider'], 
+                                          capture_output=True, text=True, timeout=10)
+                    if "RUNNING" in result.stdout or "STOPPED" in result.stdout:
+                        return True
+                except:
+                    pass
+                
+                return False
             elif app_name == "IP Python Tray App":
                 # Check for the specific tray app location
                 primary_location = "C:\\Tools\\TrayApp\\main.py"
@@ -1646,7 +1838,7 @@ class InvokeX:
                 self.log_to_terminal("CTT WinUtil launch cancelled by user", "INFO")
                 return
             
-            # Command to run CTT WinUtil in a new PowerShell window
+            # Command to run CTT WinUtil in a new, smaller PowerShell window
             command = [
                 'powershell',
                 '-Command',
@@ -1654,11 +1846,26 @@ class InvokeX:
                 'powershell',
                 '-ArgumentList',
                 '"-NoExit", "-Command", "Write-Host \'Launching CTT WinUtil...\' -ForegroundColor Green; irm https://christitus.com/win | iex"',
+                '-WindowStyle', 'Normal',
                 '-Verb', 'RunAs'  # Request elevation
             ]
             
+            # Alternative command to set window size more precisely
+            advanced_command = [
+                'powershell',
+                '-Command',
+                '$proc = Start-Process powershell -ArgumentList "-NoExit", "-Command", "[Console]::SetWindowSize(100, 30); Write-Host \'Launching CTT WinUtil...\' -ForegroundColor Green; irm https://christitus.com/win | iex" -Verb RunAs -PassThru'
+            ]
+            
             # Start the process without waiting for it to complete
-            subprocess.Popen(command, shell=False)
+            # Try the advanced command first for better window sizing
+            try:
+                subprocess.Popen(advanced_command, shell=False)
+                self.log_to_terminal("Using advanced window sizing for CTT WinUtil", "INFO")
+            except:
+                # Fallback to basic command if advanced fails
+                subprocess.Popen(command, shell=False)
+                self.log_to_terminal("Using basic window sizing for CTT WinUtil", "INFO")
             
             self.log_to_terminal("CTT WinUtil launched successfully in separate window!", "SUCCESS")
             messagebox.showinfo(
@@ -2448,64 +2655,84 @@ class InvokeX:
             
             # Function to load logs
             def load_logs():
-                text_widget.config(state='normal')
-                text_widget.delete('1.0', tk.END)
-                text_widget.insert('1.0', "Loading PowerEventProvider logs...\n\n")
-                text_widget.update()
-                
-            try:
-                self.log_to_terminal("Retrieving power logs...", "INFO")
-                # Try multiple methods to get PowerEventProvider logs
-                result = None
-                
-                # Method 1: Try Get-WinEvent (more modern)
-                ps_command1 = 'Get-WinEvent -FilterHashtable @{LogName="Application"; ProviderName="PowerEventProvider"} -MaxEvents 100 | Format-Table TimeCreated, Id, LevelDisplayName, Message -AutoSize'
-                result1 = subprocess.run(['powershell', '-Command', ps_command1], 
-                                       capture_output=True, text=True, timeout=30)
-                
-                text_widget.delete('1.0', tk.END)
-                
-                if result1.returncode == 0 and result1.stdout.strip():
-                    text_widget.insert('1.0', "PowerEventProvider Event Logs:\n" + "="*50 + "\n\n" + result1.stdout)
-                    self.log_to_terminal("Power logs retrieved successfully using Get-WinEvent!", "SUCCESS")
-                else:
-                    # Method 2: Try Get-EventLog (legacy)
-                    ps_command2 = 'Get-EventLog -LogName Application -Source PowerEventProvider -Newest 50 | Format-Table TimeGenerated, EntryType, Message -AutoSize'
-                    result2 = subprocess.run(['powershell', '-Command', ps_command2], 
+                try:
+                    text_widget.config(state='normal')
+                    text_widget.delete('1.0', tk.END)
+                    text_widget.insert('1.0', "Loading PowerEventProvider logs...\n\n")
+                    text_widget.update()
+                    
+                    self.log_to_terminal("Retrieving power logs...", "INFO")
+                    
+                    # Method 1: Try Get-WinEvent (more modern)
+                    ps_command1 = 'Get-WinEvent -FilterHashtable @{LogName="Application"; ProviderName="PowerEventProvider"} -MaxEvents 100 | Format-Table TimeCreated, Id, LevelDisplayName, Message -AutoSize'
+                    result1 = subprocess.run(['powershell', '-Command', ps_command1], 
                                            capture_output=True, text=True, timeout=30)
                     
-                    if result2.returncode == 0 and result2.stdout.strip():
-                        text_widget.insert('1.0', "PowerEventProvider Event Logs (Legacy):\n" + "="*50 + "\n\n" + result2.stdout)
-                        self.log_to_terminal("Power logs retrieved successfully using Get-EventLog!", "SUCCESS")
+                    text_widget.delete('1.0', tk.END)
+                    
+                    if result1.returncode == 0 and result1.stdout.strip():
+                        text_widget.insert('1.0', "PowerEventProvider Event Logs:\n" + "="*50 + "\n\n" + result1.stdout)
+                        self.log_to_terminal("Power logs retrieved successfully using Get-WinEvent!", "SUCCESS")
                     else:
-                        # Method 3: Check if service exists
-                        service_check = subprocess.run(['sc', 'query', 'PowerEventProvider'], 
-                                                     capture_output=True, text=True, timeout=10)
+                        # Method 2: Try Get-EventLog (legacy)
+                        ps_command2 = 'Get-EventLog -LogName Application -Source PowerEventProvider -Newest 50 | Format-Table TimeGenerated, EntryType, Message -AutoSize'
+                        result2 = subprocess.run(['powershell', '-Command', ps_command2], 
+                                               capture_output=True, text=True, timeout=30)
                         
-                        if "RUNNING" in service_check.stdout or "STOPPED" in service_check.stdout:
-                            text_widget.insert('1.0', "PowerEventProvider service is installed but no logs found yet.\n\n" +
-                                             "Service Status:\n" + service_check.stdout + "\n\n" +
-                                             "This could mean:\n" +
-                                             "• No power events have been logged yet\n" +
-                                             "• The service needs to be restarted\n" +
-                                             "• Logs may be in a different location")
+                        if result2.returncode == 0 and result2.stdout.strip():
+                            text_widget.insert('1.0', "PowerEventProvider Event Logs (Legacy):\n" + "="*50 + "\n\n" + result2.stdout)
+                            self.log_to_terminal("Power logs retrieved successfully using Get-EventLog!", "SUCCESS")
                         else:
-                            text_widget.insert('1.0', "PowerEventProvider is not installed or service not found.\n\n" +
-                                             "To install PowerEventProvider:\n" +
-                                             "1. Go to the Applications tab\n" +
-                                             "2. Click 'Download & Install' for PowerEventProvider\n" +
-                                             "3. Run the installer as Administrator\n\n" +
-                                             "Error details:\n" + (result1.stderr if result1.stderr else 'No additional error information'))
-                        
-                        self.log_to_terminal("PowerEventProvider logs not found - service may not be installed", "WARNING")
-                        
-            except Exception as e:
-                text_widget.delete('1.0', tk.END)
-                error_text = f"Error retrieving logs: {str(e)}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check your PowerShell execution policy\n• Try running InvokeX as Administrator"
-                text_widget.insert('1.0', error_text)
-                self.log_to_terminal(f"Error retrieving power logs: {str(e)}", "ERROR")
-            
-            text_widget.config(state='disabled')
+                            # Method 3: Check if service exists and provide helpful info
+                            service_check = subprocess.run(['sc', 'query', 'PowerEventProvider'], 
+                                                         capture_output=True, text=True, timeout=10)
+                            
+                            if "RUNNING" in service_check.stdout or "STOPPED" in service_check.stdout:
+                                text_widget.insert('1.0', "PowerEventProvider service is installed but no logs found yet.\n\n" +
+                                                 "Service Status:\n" + service_check.stdout + "\n\n" +
+                                                 "This could mean:\n" +
+                                                 "• No power events have been logged yet\n" +
+                                                 "• The service needs to be restarted\n" +
+                                                 "• Logs may be in a different location\n" +
+                                                 "• Logging level may not be configured properly")
+                                self.log_to_terminal("PowerEventProvider service found but no logs available", "WARNING")
+                            else:
+                                # Check if installation directory exists
+                                install_paths = [
+                                    "C:\\Program Files (x86)\\PowerEventProvider",
+                                    "C:\\Program Files\\PowerEventProvider"
+                                ]
+                                
+                                installed = any(os.path.exists(path) for path in install_paths)
+                                
+                                if installed:
+                                    text_widget.insert('1.0', "PowerEventProvider is installed but service is not running.\n\n" +
+                                                     "Installation found in:\n" +
+                                                     "C:\\Program Files (x86)\\PowerEventProvider\n\n" +
+                                                     "To fix this:\n" +
+                                                     "1. Run as Administrator\n" +
+                                                     "2. Start the PowerEventProvider service\n" +
+                                                     "3. Check Windows Event Viewer for system logs\n\n" +
+                                                     "Service error: " + (service_check.stderr if service_check.stderr else 'Service not found'))
+                                    self.log_to_terminal("PowerEventProvider installed but service not running", "WARNING")
+                                else:
+                                    text_widget.insert('1.0', "PowerEventProvider is not installed.\n\n" +
+                                                     "To install PowerEventProvider:\n" +
+                                                     "1. Go to the Applications tab\n" +
+                                                     "2. Click 'Download & Install' for PowerEventProvider\n" +
+                                                     "3. Run the installer as Administrator\n" +
+                                                     "4. Restart this application after installation\n\n" +
+                                                     "Installation will be in:\n" +
+                                                     "C:\\Program Files (x86)\\PowerEventProvider")
+                                    self.log_to_terminal("PowerEventProvider not installed", "INFO")
+                                    
+                except Exception as e:
+                    text_widget.delete('1.0', tk.END)
+                    error_text = f"Error retrieving logs: {str(e)}\n\nTroubleshooting:\n• Make sure PowerEventProvider is installed\n• Verify you have administrator privileges\n• Check your PowerShell execution policy\n• Try running InvokeX as Administrator"
+                    text_widget.insert('1.0', error_text)
+                    self.log_to_terminal(f"Error retrieving power logs: {str(e)}", "ERROR")
+                finally:
+                    text_widget.config(state='disabled')
             
             # Bind refresh button
             refresh_btn.configure(command=load_logs)
@@ -3419,8 +3646,14 @@ class InvokeX:
                     "This operation requires administrator privileges.")
                 return
             
-            # Create user account
-            cmd1 = 'net user Admin /add'
+            # Get password from user
+            password = self.get_admin_password()
+            if not password:
+                self.log_to_terminal("Admin account creation cancelled - no password provided", "info")
+                return
+            
+            # Create user account with password
+            cmd1 = f'net user Admin "{password}" /add'
             result1 = subprocess.run(cmd1, shell=True, capture_output=True, text=True, timeout=30)
             
             if result1.returncode == 0:
@@ -3438,10 +3671,9 @@ class InvokeX:
                 messagebox.showinfo("Success", 
                     "Admin account created successfully!\n\n"
                     "Account: Admin\n"
-                    "Password: No password set (SECURITY RISK!)\n"
+                    "Password: Set successfully\n"
                     "Groups: Administrators, Remote Desktop Users\n\n"
-                    "IMPORTANT: Use the 'Manage Users' button to set a strong password.\n"
-                    "An account without a password is a major security vulnerability.")
+                    "The account is ready for use with the password you provided.")
             else:
                 if "already exists" in result1.stderr.lower():
                     messagebox.showinfo("Account Exists", "Admin account already exists!")
@@ -3452,6 +3684,171 @@ class InvokeX:
         except Exception as e:
             self.log_to_terminal(f"Error creating Admin account: {str(e)}", "error")
             messagebox.showerror("Error", f"Error: {str(e)}")
+    
+    def get_admin_password(self):
+        """
+        Show a password entry dialog for the admin account.
+        
+        Returns:
+            str: The password entered by the user, or None if cancelled
+        """
+        import tkinter.simpledialog as simpledialog
+        
+        # Create a custom password dialog
+        password_dialog = tk.Toplevel(self.root)
+        password_dialog.title("Set Admin Account Password")
+        password_dialog.geometry("400x300")
+        password_dialog.resizable(False, False)
+        
+        # Center the dialog
+        password_dialog.transient(self.root)
+        password_dialog.grab_set()
+        
+        # Set icon for the dialog if available
+        try:
+            icon_paths = [
+                "icon.ico",
+                "C:\\Tools\\InvokeX\\icon.ico",
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.ico")
+            ]
+            
+            for icon_path in icon_paths:
+                if os.path.exists(icon_path):
+                    password_dialog.iconbitmap(icon_path)
+                    break
+        except:
+            pass
+        
+        # Configure dialog
+        password_dialog.configure(bg='#f8f9fa')
+        
+        # Title label
+        title_label = tk.Label(password_dialog, 
+                              text="Set Password for Admin Account", 
+                              font=('Segoe UI', 14, 'bold'),
+                              bg='#f8f9fa', fg='#212529')
+        title_label.pack(pady=(20, 10))
+        
+        # Info label
+        info_label = tk.Label(password_dialog, 
+                             text="Please enter a strong password for the Admin account.\n"
+                                  "This password will be used for Windows login and\n"
+                                  "Remote Desktop connections.", 
+                             font=('Segoe UI', 9),
+                             bg='#f8f9fa', fg='#6c757d',
+                             justify='center')
+        info_label.pack(pady=(0, 20))
+        
+        # Password frame
+        password_frame = tk.Frame(password_dialog, bg='#f8f9fa')
+        password_frame.pack(pady=10)
+        
+        # Password label
+        password_label = tk.Label(password_frame, 
+                                 text="Password:", 
+                                 font=('Segoe UI', 10),
+                                 bg='#f8f9fa', fg='#212529')
+        password_label.pack(anchor='w')
+        
+        # Password entry
+        password_var = tk.StringVar()
+        password_entry = tk.Entry(password_frame, 
+                                 textvariable=password_var,
+                                 show='*',
+                                 font=('Segoe UI', 10),
+                                 width=30)
+        password_entry.pack(pady=(5, 10))
+        
+        # Confirm password frame
+        confirm_frame = tk.Frame(password_dialog, bg='#f8f9fa')
+        confirm_frame.pack(pady=10)
+        
+        # Confirm password label
+        confirm_label = tk.Label(confirm_frame, 
+                                text="Confirm Password:", 
+                                font=('Segoe UI', 10),
+                                bg='#f8f9fa', fg='#212529')
+        confirm_label.pack(anchor='w')
+        
+        # Confirm password entry
+        confirm_var = tk.StringVar()
+        confirm_entry = tk.Entry(confirm_frame, 
+                                textvariable=confirm_var,
+                                show='*',
+                                font=('Segoe UI', 10),
+                                width=30)
+        confirm_entry.pack(pady=(5, 10))
+        
+        # Result variable
+        result = {'password': None, 'cancelled': False}
+        
+        def validate_and_set_password():
+            password = password_var.get()
+            confirm = confirm_var.get()
+            
+            if not password:
+                messagebox.showerror("Error", "Password cannot be empty!", parent=password_dialog)
+                return
+            
+            if len(password) < 4:
+                messagebox.showerror("Error", "Password must be at least 4 characters long!", parent=password_dialog)
+                return
+            
+            if password != confirm:
+                messagebox.showerror("Error", "Passwords do not match!", parent=password_dialog)
+                return
+            
+            result['password'] = password
+            password_dialog.destroy()
+        
+        def cancel_dialog():
+            result['cancelled'] = True
+            password_dialog.destroy()
+        
+        # Buttons frame
+        buttons_frame = tk.Frame(password_dialog, bg='#f8f9fa')
+        buttons_frame.pack(pady=20)
+        
+        # OK button
+        ok_button = tk.Button(buttons_frame, 
+                             text="Create Account", 
+                             command=validate_and_set_password,
+                             bg='#0d6efd', fg='white',
+                             font=('Segoe UI', 10, 'bold'),
+                             padx=20, pady=8,
+                             relief='flat',
+                             cursor='hand2')
+        ok_button.pack(side='left', padx=(0, 10))
+        
+        # Cancel button
+        cancel_button = tk.Button(buttons_frame, 
+                                 text="Cancel", 
+                                 command=cancel_dialog,
+                                 bg='#6c757d', fg='white',
+                                 font=('Segoe UI', 10, 'bold'),
+                                 padx=20, pady=8,
+                                 relief='flat',
+                                 cursor='hand2')
+        cancel_button.pack(side='left')
+        
+        # Hover effects
+        ok_button.bind('<Enter>', lambda e: ok_button.configure(bg='#0b5ed7'))
+        ok_button.bind('<Leave>', lambda e: ok_button.configure(bg='#0d6efd'))
+        cancel_button.bind('<Enter>', lambda e: cancel_button.configure(bg='#5a6268'))
+        cancel_button.bind('<Leave>', lambda e: cancel_button.configure(bg='#6c757d'))
+        
+        # Bind Enter key to OK button
+        password_dialog.bind('<Return>', lambda e: validate_and_set_password())
+        password_entry.bind('<Return>', lambda e: confirm_entry.focus())
+        confirm_entry.bind('<Return>', lambda e: validate_and_set_password())
+        
+        # Focus on password entry
+        password_entry.focus()
+        
+        # Wait for dialog to close
+        password_dialog.wait_window(password_dialog)
+        
+        return result['password']
     
     def open_user_management(self):
         """Open Windows User Management (mmc.exe > Local Users and Groups > Users)."""
