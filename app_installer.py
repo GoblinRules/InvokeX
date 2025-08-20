@@ -67,9 +67,6 @@ class InvokeX:
         # Check admin privileges
         self.is_admin = self.check_admin_privileges()
         
-        # Check Python availability for Python-dependent applications
-        self.python_available = self.check_python_availability()
-        
         # Style configuration
         self.setup_styles()
         
@@ -92,6 +89,9 @@ class InvokeX:
         
         # Bind resize event
         self.root.bind('<Configure>', self.on_resize)
+        
+        # Check Python availability after UI is initialized
+        self.python_available = self.check_python_availability()
         
         # Show admin status
         if not self.is_admin:
