@@ -589,43 +589,52 @@ class InvokeX:
             # Log the restart attempt
             self.log_to_terminal("Restarting InvokeX with administrator privileges...", "info")
             
-            # Method 1: Try direct Python restart with admin privileges
+            # Use pythonw.exe for admin restart to avoid console window
+            python_exe = "pythonw.exe"  # No console window
+            
+            # Method 1: Try direct pythonw restart with admin privileges
             try:
-                # Build the PowerShell command to restart as admin
-                ps_command = f'''
-                Start-Process python -ArgumentList "{script_path}" -WorkingDirectory "{working_dir}" -Verb RunAs -WindowStyle Normal
-                '''
+                # Build the PowerShell command to restart as admin using pythonw
+                ps_command = f'Start-Process -FilePath "{python_exe}" -ArgumentList \'"{script_path}"\' -WorkingDirectory "{working_dir}" -Verb RunAs'
                 
                 # Execute the PowerShell command
-                subprocess.run(['powershell', '-Command', ps_command], shell=True)
+                result = subprocess.run(['powershell', '-Command', ps_command], 
+                                      capture_output=True, text=True, shell=True, timeout=10)
                 
-                # Close the current application
-                self.log_to_terminal("Closing current instance...", "info")
-                self.root.after(1000, self.root.quit)  # Delay to allow new process to start
+                if result.returncode == 0:
+                    # Close the current application
+                    self.log_to_terminal("Admin restart initiated successfully.", "success")
+                    self.root.after(1000, self.root.quit)
+                else:
+                    raise Exception(f"PowerShell command failed: {result.stderr}")
                 
             except Exception as e:
-                # Method 2: Fallback to batch file method
-                self.log_to_terminal("Direct restart failed, trying batch file method...", "warning")
+                # Method 2: Fallback to creating a VBS script (no console window)
+                self.log_to_terminal(f"Direct restart failed ({str(e)}), trying VBS method...", "warning")
                 
-                # Create a temporary batch file to restart as admin
-                batch_content = f'''@echo off
-cd /d "{working_dir}"
-python "{script_path}"
-'''
-                batch_path = os.path.join(working_dir, "restart_admin.bat")
+                # Create a VBS script to restart as admin without console window
+                vbs_content = f'''Set objShell = CreateObject("Shell.Application")
+objShell.ShellExecute "{python_exe}", """{script_path}""", "{working_dir}", "runas", 0'''
                 
-                with open(batch_path, 'w') as f:
-                    f.write(batch_content)
+                vbs_path = os.path.join(working_dir, "restart_admin.vbs")
                 
-                # Run the batch file as admin
-                subprocess.run(['powershell', 'Start-Process', batch_path, '-Verb', 'RunAs'])
-                
-                # Clean up batch file after a delay
-                self.root.after(2000, lambda: os.remove(batch_path) if os.path.exists(batch_path) else None)
-                
-                # Close the current application
-                self.log_to_terminal("Closing current instance...", "info")
-                self.root.after(1500, self.root.quit)
+                try:
+                    with open(vbs_path, 'w') as f:
+                        f.write(vbs_content)
+                    
+                    # Run the VBS script
+                    subprocess.run(['cscript', '//NoLogo', vbs_path], shell=True)
+                    
+                    # Clean up VBS file after a delay
+                    self.root.after(2000, lambda: os.remove(vbs_path) if os.path.exists(vbs_path) else None)
+                    
+                    # Close the current application
+                    self.log_to_terminal("Admin restart initiated via VBS script.", "success")
+                    self.root.after(1500, self.root.quit)
+                    
+                except Exception as vbs_error:
+                    self.log_to_terminal(f"VBS method also failed: {str(vbs_error)}", "error")
+                    raise vbs_error
             
         except Exception as e:
             self.log_to_terminal(f"Failed to restart as admin: {str(e)}", "ERROR")
