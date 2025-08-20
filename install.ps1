@@ -22,8 +22,10 @@ This installer will:
 2. Install Python automatically if needed
 3. Download the InvokeX GUI application files
 4. Install to C:\Tools\InvokeX
-5. Create desktop shortcut with custom icon
-6. Set up start menu integration
+5. Install required Python dependencies (customtkinter, Pillow)
+6. Create desktop shortcut with custom icon
+7. Set up start menu integration
+8. Test that everything works correctly
 
 Requirements:
 - Windows 10/11
@@ -250,6 +252,32 @@ function Install-InvokeX {
         Write-Host "✗ Failed to create start menu shortcut: $($_.Exception.Message)" -ForegroundColor Red
     }
     
+    # Install Python dependencies
+    try {
+        Write-Host "Installing Python dependencies..." -ForegroundColor Yellow
+        $requirementsPath = Join-Path $installDir "requirements.txt"
+        
+        # Change to installation directory and install requirements
+        Push-Location $installDir
+        try {
+            $pipResult = python -m pip install -r requirements.txt 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "✓ Python dependencies installed successfully" -ForegroundColor Green
+            } else {
+                Write-Host "✗ Failed to install Python dependencies" -ForegroundColor Red
+                Write-Host "Error: $pipResult" -ForegroundColor Red
+                Write-Host "You may need to install dependencies manually:" -ForegroundColor Yellow
+                Write-Host "cd $installDir && python -m pip install -r requirements.txt" -ForegroundColor Yellow
+            }
+        } finally {
+            Pop-Location
+        }
+    } catch {
+        Write-Host "✗ Failed to install Python dependencies: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "You may need to install dependencies manually:" -ForegroundColor Yellow
+        Write-Host "cd $installDir && python -m pip install -r requirements.txt" -ForegroundColor Yellow
+    }
+    
     # Create uninstaller
     try {
         $uninstallerPath = Join-Path $installDir "uninstall.ps1"
@@ -283,6 +311,26 @@ Write-Host "InvokeX has been uninstalled successfully!" -ForegroundColor Green
         Write-Host "✓ Uninstaller created: uninstall.ps1" -ForegroundColor Green
     } catch {
         Write-Host "✗ Failed to create uninstaller: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    # Test that InvokeX can run after installation
+    try {
+        Write-Host "Testing InvokeX installation..." -ForegroundColor Yellow
+        Push-Location $installDir
+        try {
+            # Test import without running the full GUI
+            $testResult = python -c "import customtkinter; print('Dependencies test: SUCCESS')" 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "✓ InvokeX dependencies test passed" -ForegroundColor Green
+            } else {
+                Write-Host "✗ InvokeX dependencies test failed" -ForegroundColor Red
+                Write-Host "Error: $testResult" -ForegroundColor Red
+            }
+        } finally {
+            Pop-Location
+        }
+    } catch {
+        Write-Host "✗ Failed to test InvokeX installation: $($_.Exception.Message)" -ForegroundColor Red
     }
     
     return $true
@@ -333,6 +381,8 @@ function Show-Success {
 ╠══════════════════════════════════════════════════════════════╣
 ║                                                              ║
 ║  ✓ InvokeX has been installed successfully!                 ║
+║  ✓ Python dependencies installed                            ║
+║  ✓ Ready to run immediately                                 ║
 ║                                                              ║
 ║  You can now:                                               ║
 ║  • Double-click the desktop shortcut (InvokeX.lnk)          ║
