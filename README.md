@@ -58,12 +58,24 @@
 ### Method 1: Automated Installation (Recommended)
 
 1. **Download and run the installer:**
-   ```powershell
+  
    # Run this command in PowerShell as Administrator
+   ```powershell
    irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex
    ```
 
-2. **Launch the application:**
+   ### 🖥️ Fix for Older Windows Systems (pre-TLS 1.2)
+
+   Run this first to enable TLS 1.2 and strong crypto:
+
+   ```powershell
+   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+   ```
+   ```powershell
+   irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex
+   ```
+
+3. **Launch the application:**
    - Desktop shortcut: `InvokeX`
    - Start Menu: Search for "InvokeX"
    - Direct: Double-click `app_installer.py`
@@ -256,3 +268,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 [Report Bug](https://github.com/GoblinRules/InvokeX/issues) • [Request Feature](https://github.com/GoblinRules/InvokeX/issues) • [Contributing](CONTRIBUTING.md)
 
 </div>
+
