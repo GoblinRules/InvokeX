@@ -580,18 +580,53 @@ class InvokeX:
         try:
             import sys
             import subprocess
+            import os
             
-            # Get the current script path
-            script_path = sys.argv[0]
-            if script_path.endswith('.py'):
-                # If running as Python script, restart with Python
-                cmd = ['powershell', 'Start-Process', 'python', '-ArgumentList', f'"{script_path}"', '-Verb', 'RunAs']
-            else:
-                # If running as executable, restart the executable
-                cmd = ['powershell', 'Start-Process', f'"{script_path}"', '-Verb', 'RunAs']
+            # Get the current script path and working directory
+            script_path = os.path.abspath(__file__)
+            working_dir = os.path.dirname(script_path)
             
-            subprocess.run(cmd)
-            self.root.quit()
+            # Log the restart attempt
+            self.log_to_terminal("Restarting InvokeX with administrator privileges...", "info")
+            
+            # Method 1: Try direct Python restart with admin privileges
+            try:
+                # Build the PowerShell command to restart as admin
+                ps_command = f'''
+                Start-Process python -ArgumentList "{script_path}" -WorkingDirectory "{working_dir}" -Verb RunAs -WindowStyle Normal
+                '''
+                
+                # Execute the PowerShell command
+                subprocess.run(['powershell', '-Command', ps_command], shell=True)
+                
+                # Close the current application
+                self.log_to_terminal("Closing current instance...", "info")
+                self.root.after(1000, self.root.quit)  # Delay to allow new process to start
+                
+            except Exception as e:
+                # Method 2: Fallback to batch file method
+                self.log_to_terminal("Direct restart failed, trying batch file method...", "warning")
+                
+                # Create a temporary batch file to restart as admin
+                batch_content = f'''@echo off
+cd /d "{working_dir}"
+python "{script_path}"
+'''
+                batch_path = os.path.join(working_dir, "restart_admin.bat")
+                
+                with open(batch_path, 'w') as f:
+                    f.write(batch_content)
+                
+                # Run the batch file as admin
+                subprocess.run(['powershell', 'Start-Process', batch_path, '-Verb', 'RunAs'])
+                
+                # Clean up batch file after a delay
+                self.root.after(2000, lambda: os.remove(batch_path) if os.path.exists(batch_path) else None)
+                
+                # Close the current application
+                self.log_to_terminal("Closing current instance...", "info")
+                self.root.after(1500, self.root.quit)
+            
         except Exception as e:
             self.log_to_terminal(f"Failed to restart as admin: {str(e)}", "ERROR")
             messagebox.showerror("Error", f"Failed to restart as administrator: {str(e)}")

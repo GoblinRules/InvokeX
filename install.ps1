@@ -207,7 +207,7 @@ function Install-InvokeX {
         
         $WshShell = New-Object -ComObject WScript.Shell
         $Shortcut = $WshShell.CreateShortcut($shortcutPath)
-        $Shortcut.TargetPath = "pythonw.exe"
+        $Shortcut.TargetPath = "python.exe"
         $Shortcut.Arguments = "`"$installDir\app_installer.py`""
         $Shortcut.WorkingDirectory = $installDir
         $Shortcut.Description = "InvokeX - Modern GUI installer for Windows applications and system tweaks"
@@ -216,7 +216,7 @@ function Install-InvokeX {
         if (Test-Path $iconPath) {
             $Shortcut.IconLocation = $iconPath
         } else {
-            $Shortcut.IconLocation = "pythonw.exe,0"
+            $Shortcut.IconLocation = "python.exe,0"
         }
         
         $Shortcut.Save()
@@ -234,7 +234,7 @@ function Install-InvokeX {
         
         $startMenuShortcut = Join-Path $startMenuPath "InvokeX.lnk"
         $Shortcut = $WshShell.CreateShortcut($startMenuShortcut)
-        $Shortcut.TargetPath = "pythonw.exe"
+        $Shortcut.TargetPath = "python.exe"
         $Shortcut.Arguments = "`"$installDir\app_installer.py`""
         $Shortcut.WorkingDirectory = $installDir
         $Shortcut.Description = "InvokeX - Modern GUI installer for Windows applications and system tweaks"
@@ -243,7 +243,7 @@ function Install-InvokeX {
         if (Test-Path $iconPath) {
             $Shortcut.IconLocation = $iconPath
         } else {
-            $Shortcut.IconLocation = "pythonw.exe,0"
+            $Shortcut.IconLocation = "python.exe,0"
         }
         
         $Shortcut.Save()
