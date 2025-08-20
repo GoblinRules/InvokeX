@@ -1685,6 +1685,16 @@ class InvokeX:
                              wraplength=800)
         desc_label.pack(anchor='w', pady=(6, 0))
         
+        # Status indicator for PowerEventProvider and other apps
+        status_text = "○ Checking..."
+        status_color = "#95a5a6"
+        status_label = tk.Label(info_frame, text=status_text, 
+                               font=('Segoe UI', 8, 'bold'), 
+                               bg='#ffffff', fg=status_color, anchor='w')
+        status_label.pack(anchor='w', pady=(5, 0))
+        # Check installation in background
+        self.root.after(50, lambda: self.check_app_async(title, status_label))
+        
         # Buttons frame with consistent alignment (matching tweaks)
         buttons_frame = tk.Frame(info_frame, bg='#ffffff')
         buttons_frame.pack(fill='x', pady=(18, 0))
@@ -1700,9 +1710,15 @@ class InvokeX:
             'width': 15  # Fixed width for alignment
         }
         
+        # Create wrapper function that refreshes status after installation
+        def install_and_refresh():
+            install_func()
+            # Refresh status after installation
+            self.root.after(1000, lambda: self.refresh_app_status(title, status_label))
+        
         # Button 1 (Install) - Primary action
         install_btn = tk.Button(buttons_frame, text=btn1_text, 
-                               command=install_func,
+                               command=install_and_refresh,
                                bg='#0d6efd', fg='white',
                                **button_style)
         install_btn.pack(side='left', padx=(0, 12))
@@ -1977,7 +1993,7 @@ class InvokeX:
             result = subprocess.run([
                 "powershell", "-ExecutionPolicy", "Bypass", "-Command",
                 "irm 'https://raw.githubusercontent.com/GoblinRules/ippy-tray-app/main/install.ps1' | iex"
-            ], capture_output=True, text=True, timeout=60)
+            ], capture_output=True, text=True, timeout=180)  # Increased to 3 minutes
             
             if result.returncode == 0:
                 self.log_to_terminal("IP Python Tray App installed successfully!", "success")
@@ -2030,7 +2046,7 @@ class InvokeX:
             final_result = subprocess.run([
                 "powershell", "-ExecutionPolicy", "Bypass", "-Command",
                 "irm 'https://raw.githubusercontent.com/GoblinRules/ippy-tray-app/main/install.ps1' | iex"
-            ], capture_output=True, text=True, timeout=60)
+            ], capture_output=True, text=True, timeout=180)  # Increased to 3 minutes
             
             if final_result.returncode == 0:
                 self.log_to_terminal("IP Python Tray App installed successfully!", "success")
@@ -2433,7 +2449,7 @@ class InvokeX:
             
             self.log_to_terminal("✓ Administrator privileges confirmed", "success")
             success_count = 0
-            total_operations = 6
+            total_operations = 8  # Added sleep button and better power settings
             
             # Method 1: Set sleep to never using powercfg with timeout values
             self.log_to_terminal("🔧 Configuring sleep settings (AC and battery)...", "info")
@@ -2487,43 +2503,79 @@ class InvokeX:
             except Exception as e:
                 self.log_to_terminal(f"❌ Display timeout configuration failed: {str(e)}", "error")
             
-            # Method 4: Configure power button action using registry
+            # Method 4: Configure power button action using powercfg (more reliable)
             self.log_to_terminal("🔧 Configuring power button (do nothing)...", "info")
             try:
-                # Set power button to do nothing (0 = do nothing)
-                reg_cmd1 = 'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerSettings\\4f971e89-eebd-4455-a8de-9e59040e7347\\7648efa3-dd9c-4e3e-b566-50f929386280" /v ACSettingIndex /t REG_DWORD /d 0 /f'
-                reg_cmd2 = 'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerSettings\\4f971e89-eebd-4455-a8de-9e59040e7347\\7648efa3-dd9c-4e3e-b566-50f929386280" /v DCSettingIndex /t REG_DWORD /d 0 /f'
+                # Set power button to do nothing using powercfg
+                # POWERBUTTONACTION: 0 = Do nothing, 1 = Sleep, 2 = Hibernate, 3 = Shut down
+                power_btn_cmd1 = 'powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 0'
+                power_btn_cmd2 = 'powercfg /setdcvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 0'
                 
-                result7 = subprocess.run(reg_cmd1, shell=True, capture_output=True, text=True, timeout=30)
-                result8 = subprocess.run(reg_cmd2, shell=True, capture_output=True, text=True, timeout=30)
+                result7 = subprocess.run(power_btn_cmd1, shell=True, capture_output=True, text=True, timeout=30)
+                result8 = subprocess.run(power_btn_cmd2, shell=True, capture_output=True, text=True, timeout=30)
                 
                 if result7.returncode == 0 and result8.returncode == 0:
                     success_count += 1
                     self.log_to_terminal("✓ Power button configured to do nothing", "success")
                 else:
-                    self.log_to_terminal(f"⚠ Power button configuration had issues", "warning")
+                    self.log_to_terminal(f"⚠ Power button configuration had issues: AC={result7.stderr}, DC={result8.stderr}", "warning")
             except Exception as e:
                 self.log_to_terminal(f"❌ Power button configuration failed: {str(e)}", "error")
             
-            # Method 5: Configure lid close action using registry
-            self.log_to_terminal("🔧 Configuring lid close action (do nothing)...", "info")
+            # Method 5: Configure sleep button action (NEW - this was missing)
+            self.log_to_terminal("🔧 Configuring sleep button (do nothing)...", "info")
             try:
-                # Set lid close to do nothing (0 = do nothing)
-                reg_cmd3 = 'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerSettings\\4f971e89-eebd-4455-a8de-9e59040e7347\\5ca83367-6e45-459f-a27b-476b1d5cba29" /v ACSettingIndex /t REG_DWORD /d 0 /f'
-                reg_cmd4 = 'reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerSettings\\4f971e89-eebd-4455-a8de-9e59040e7347\\5ca83367-6e45-459f-a27b-476b1d5cba29" /v DCSettingIndex /t REG_DWORD /d 0 /f'
+                # Set sleep button to do nothing using powercfg
+                # SLEEPBUTTONACTION: 0 = Do nothing, 1 = Sleep, 2 = Hibernate, 3 = Shut down
+                sleep_btn_cmd1 = 'powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS SBUTTONACTION 0'
+                sleep_btn_cmd2 = 'powercfg /setdcvalueindex SCHEME_CURRENT SUB_BUTTONS SBUTTONACTION 0'
                 
-                result9 = subprocess.run(reg_cmd3, shell=True, capture_output=True, text=True, timeout=30)
-                result10 = subprocess.run(reg_cmd4, shell=True, capture_output=True, text=True, timeout=30)
+                result9 = subprocess.run(sleep_btn_cmd1, shell=True, capture_output=True, text=True, timeout=30)
+                result10 = subprocess.run(sleep_btn_cmd2, shell=True, capture_output=True, text=True, timeout=30)
                 
                 if result9.returncode == 0 and result10.returncode == 0:
                     success_count += 1
+                    self.log_to_terminal("✓ Sleep button configured to do nothing", "success")
+                else:
+                    self.log_to_terminal(f"⚠ Sleep button configuration had issues: AC={result9.stderr}, DC={result10.stderr}", "warning")
+            except Exception as e:
+                self.log_to_terminal(f"❌ Sleep button configuration failed: {str(e)}", "error")
+            
+            # Method 6: Configure lid close action using powercfg (more reliable)
+            self.log_to_terminal("🔧 Configuring lid close action (do nothing)...", "info")
+            try:
+                # Set lid close to do nothing using powercfg
+                # LIDACTION: 0 = Do nothing, 1 = Sleep, 2 = Hibernate, 3 = Shut down
+                lid_cmd1 = 'powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0'
+                lid_cmd2 = 'powercfg /setdcvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0'
+                
+                result11 = subprocess.run(lid_cmd1, shell=True, capture_output=True, text=True, timeout=30)
+                result12 = subprocess.run(lid_cmd2, shell=True, capture_output=True, text=True, timeout=30)
+                
+                if result11.returncode == 0 and result12.returncode == 0:
+                    success_count += 1
                     self.log_to_terminal("✓ Lid close configured to do nothing", "success")
                 else:
-                    self.log_to_terminal(f"⚠ Lid close configuration had issues", "warning")
+                    self.log_to_terminal(f"⚠ Lid close configuration had issues: AC={result11.stderr}, DC={result12.stderr}", "warning")
             except Exception as e:
                 self.log_to_terminal(f"❌ Lid close configuration failed: {str(e)}", "error")
             
-            # Method 6: Apply current power scheme and refresh
+            # Method 7: Force apply current power scheme to activate all changes
+            self.log_to_terminal("🔧 Applying current power scheme to activate changes...", "info")
+            try:
+                # Apply the current scheme to make all changes active
+                apply_cmd = 'powercfg /setactive SCHEME_CURRENT'
+                apply_result = subprocess.run(apply_cmd, shell=True, capture_output=True, text=True, timeout=30)
+                
+                if apply_result.returncode == 0:
+                    success_count += 1
+                    self.log_to_terminal("✓ Current power scheme applied successfully", "success")
+                else:
+                    self.log_to_terminal(f"⚠ Power scheme application had issues: {apply_result.stderr}", "warning")
+            except Exception as e:
+                self.log_to_terminal(f"❌ Power scheme application failed: {str(e)}", "error")
+            
+            # Method 8: Apply current power scheme and refresh
             self.log_to_terminal("🔧 Applying power scheme changes...", "info")
             try:
                 # Get current power scheme GUID
@@ -2553,7 +2605,7 @@ class InvokeX:
             # Final results
             self.log_to_terminal(f"=== Power management configuration completed: {success_count}/{total_operations} operations successful ===", "info")
             
-            if success_count >= 4:  # Require at least 4/6 operations to succeed
+            if success_count >= 6:  # Require at least 6/8 operations to succeed
                 self.log_to_terminal("🎉 Power management configured successfully!", "success")
                 messagebox.showinfo("Power Management Configured", 
                     f"Power management settings have been configured successfully!\n\n"
@@ -2563,9 +2615,11 @@ class InvokeX:
                     "✓ System will never hibernate\n"
                     "✓ Display will never turn off\n"
                     "✓ Power button will do nothing\n"
+                    "✓ Sleep button will do nothing\n"
                     "✓ Closing lid will do nothing\n\n"
-                    "Changes are active immediately.\n"
-                    "Check terminal for detailed results.")
+                    "These settings should now appear in:\n"
+                    "Control Panel > Hardware and Sound > Power Options > System Settings\n\n"
+                    "Changes are active immediately.")
             else:
                 self.log_to_terminal("⚠ Power management partially configured", "warning")
                 messagebox.showwarning("Partial Configuration", 
@@ -3645,6 +3699,65 @@ class InvokeX:
                 messagebox.showwarning("Administrator Required", 
                     "This operation requires administrator privileges.")
                 return
+            
+            # First, check if Admin account already exists
+            self.log_to_terminal("Checking if Admin account already exists...", "info")
+            check_cmd = 'net user Admin'
+            check_result = subprocess.run(check_cmd, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if check_result.returncode == 0:
+                # Account already exists, warn user
+                self.log_to_terminal("Admin account already exists!", "warning")
+                
+                overwrite = messagebox.askyesno(
+                    "Admin Account Already Exists",
+                    "An Admin account already exists on this system.\n\n"
+                    "Would you like to:\n"
+                    "• Reset the password for the existing account?\n\n"
+                    "Click 'Yes' to reset password\n"
+                    "Click 'No' to cancel operation\n\n"
+                    "Warning: This will change the password for the existing Admin account."
+                )
+                
+                if not overwrite:
+                    self.log_to_terminal("Admin account creation cancelled by user", "info")
+                    return
+                
+                # Get new password for existing account
+                password = self.get_admin_password()
+                if not password:
+                    self.log_to_terminal("Admin account password reset cancelled - no password provided", "info")
+                    return
+                
+                # Reset password for existing account
+                self.log_to_terminal("Resetting password for existing Admin account...", "info")
+                reset_cmd = f'net user Admin "{password}"'
+                reset_result = subprocess.run(reset_cmd, shell=True, capture_output=True, text=True, timeout=30)
+                
+                if reset_result.returncode == 0:
+                    self.log_to_terminal("Admin account password reset successfully", "success")
+                    
+                    # Ensure it's in the required groups
+                    cmd2 = 'net localgroup Administrators Admin /add'
+                    subprocess.run(cmd2, shell=True, capture_output=True, text=True, timeout=30)
+                    
+                    cmd3 = 'net localgroup "Remote Desktop Users" Admin /add'
+                    subprocess.run(cmd3, shell=True, capture_output=True, text=True, timeout=30)
+                    
+                    messagebox.showinfo("Success", 
+                        "Admin account password has been reset successfully!\n\n"
+                        "Account: Admin\n"
+                        "Password: Updated successfully\n"
+                        "Groups: Administrators, Remote Desktop Users\n\n"
+                        "The account is ready for use with the new password.")
+                else:
+                    self.log_to_terminal(f"Failed to reset Admin account password: {reset_result.stderr}", "error")
+                    messagebox.showerror("Failed", f"Failed to reset Admin account password: {reset_result.stderr}")
+                
+                return
+            
+            # Account doesn't exist, proceed with creation
+            self.log_to_terminal("Admin account does not exist, proceeding with creation...", "info")
             
             # Get password from user
             password = self.get_admin_password()
