@@ -3147,13 +3147,16 @@ class InvokeX:
         # Start countdown
         self.countdown_seconds = 15
         self.countdown_window = countdown_window
-        self.time_label = time_label
         self.countdown_restart()
     
     def countdown_restart(self):
         """Handle the countdown for system restart."""
         if hasattr(self, 'countdown_seconds') and self.countdown_seconds > 0:
-            self.time_label.configure(text=str(self.countdown_seconds))
+            # Find the time label in the countdown window
+            for widget in self.countdown_window.winfo_children():
+                if isinstance(widget, ctk.CTkLabel) and widget.cget("text").isdigit():
+                    widget.configure(text=str(self.countdown_seconds))
+                    break
             self.countdown_seconds -= 1
             self.root.after(1000, self.countdown_restart)
         elif hasattr(self, 'countdown_window') and self.countdown_window.winfo_exists():
@@ -3184,20 +3187,24 @@ class InvokeX:
     def countdown_shutdown(self):
         """Handle the countdown for system shutdown."""
         if hasattr(self, 'countdown_seconds') and self.countdown_seconds > 0:
-            self.time_label.configure(text=str(self.countdown_seconds))
+            # Find the time label in the countdown window
+            for widget in self.countdown_window.winfo_children():
+                if isinstance(widget, ctk.CTkLabel) and widget.cget("text").isdigit():
+                    widget.configure(text=str(self.countdown_seconds))
+                    break
             self.countdown_seconds -= 1
-            
-            if self.countdown_seconds >= 0:
-                self.root.after(1000, self.countdown_shutdown)
-            else:
-                # Time's up, proceed with shutdown
+            self.root.after(1000, self.countdown_shutdown)
+        elif hasattr(self, 'countdown_window') and self.countdown_window.winfo_exists():
+            # Time's up, proceed with shutdown
+            self.log_to_terminal("Countdown complete. Shutting down system...", "warning")
+            try:
+                subprocess.run(["shutdown", "/s", "/t", "0"], capture_output=True, timeout=30)
+                self.log_to_terminal("Shutdown command sent successfully.", "success")
+            except Exception as e:
+                self.log_to_terminal(f"Failed to shutdown system: {str(e)}", "error")
+                messagebox.showerror("Shutdown Failed", f"Failed to shutdown system: {str(e)}")
+            finally:
                 self.countdown_window.destroy()
-                try:
-                    subprocess.run(["shutdown", "/s", "/t", "0"], capture_output=True, timeout=30)
-                    self.log_to_terminal("Shutdown command sent successfully.", "success")
-                except Exception as e:
-                    self.log_to_terminal(f"Failed to shutdown system: {str(e)}", "error")
-                    messagebox.showerror("Shutdown Failed", f"Failed to shutdown system: {str(e)}")
 
     def set_chrome_as_default(self):
         """Set Google Chrome as the default browser."""
@@ -3375,25 +3382,27 @@ class InvokeX:
             pass
         
         # Countdown label
-        countdown_label = tk.Label(countdown_window, text="System will shutdown in:", 
-                                  font=('Segoe UI', 12, 'bold'))
+        countdown_label = ctk.CTkLabel(countdown_window, text="System will shutdown in:", 
+                                      font=ctk.CTkFont(size=14, weight="bold"))
         countdown_label.pack(pady=(20, 10))
         
         # Time label
-        time_label = tk.Label(countdown_window, text="15", 
-                             font=('Segoe UI', 24, 'bold'), fg='#e74c3c')
+        time_label = ctk.CTkLabel(countdown_window, text="15", 
+                                 font=ctk.CTkFont(size=28, weight="bold"), 
+                                 text_color=("#e74c3c", "#ff6b6b"))
         time_label.pack(pady=(0, 20))
         
         # Cancel button
-        cancel_btn = tk.Button(countdown_window, text="Cancel Shutdown", 
-                              command=lambda: self.cancel_shutdown(countdown_window),
-                              bg='#e74c3c', fg='white', font=('Segoe UI', 10, 'bold'))
+        cancel_btn = ctk.CTkButton(countdown_window, text="Cancel Shutdown", 
+                                  command=lambda: self.cancel_shutdown(countdown_window),
+                                  fg_color=("#e74c3c", "#dc2626"), 
+                                  hover_color=("#c82333", "#b91c1c"),
+                                  font=ctk.CTkFont(size=12, weight="bold"))
         cancel_btn.pack()
         
         # Start countdown
         self.countdown_seconds = 15
         self.countdown_window = countdown_window
-        self.time_label = time_label
         self.countdown_shutdown()
     
     def cancel_power_action(self):
