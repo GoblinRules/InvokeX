@@ -1,6 +1,6 @@
 {
     "name": "invokex",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "description": "Modern GUI application for installing Windows applications and system tweaks",
     "main": "main.js",
     "author": "GoblinRules",

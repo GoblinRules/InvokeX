@@ -380,38 +380,18 @@ const TWEAKS = [
         description: 'Add/remove TRIP to Windows Defender exclusions to prevent false positive quarantine',
         buttons: [
             {
-                text: '🛡️ Add Exclusion', style: 'primary', action: 'powershell',
+                text: '🛡️ Add Exclusion', style: 'primary', action: 'powershell-window',
                 confirm: true, confirmTitle: 'Add Defender Exclusion',
-                confirmDesc: 'This will add TRIP.exe paths to Windows Defender exclusions (process + folder).',
-                command: `
-                    $paths=@("$env:LOCALAPPDATA\\TRIP","$env:LOCALAPPDATA\\TRIP\\TRIP.exe","$env:USERPROFILE\\Desktop\\TRIP.exe","$env:USERPROFILE\\Downloads\\TRIP.exe")
-                    $paths|ForEach-Object{Add-MpPreference -ExclusionPath $_ -EA SilentlyContinue;Write-Host "Added path exclusion: $_"}
-                    Add-MpPreference -ExclusionProcess 'TRIP.exe' -EA SilentlyContinue
-                    Write-Host 'Added process exclusion: TRIP.exe'
-                    Write-Host ''
-                    Write-Host 'TRIP exclusions added to Windows Defender.'
-                `
+                confirmDesc: 'This will add TRIP.exe paths to Windows Defender exclusions (process + folder). An elevated PowerShell window will open.',
+                command: `$paths=@(\"$env:LOCALAPPDATA\\TRIP\",\"$env:LOCALAPPDATA\\TRIP\\TRIP.exe\",\"$env:USERPROFILE\\Desktop\\TRIP.exe\",\"$env:USERPROFILE\\Downloads\\TRIP.exe\");$paths|ForEach-Object{Add-MpPreference -ExclusionPath $_ -EA SilentlyContinue;Write-Host \"Added path exclusion: $_\"};Add-MpPreference -ExclusionProcess 'TRIP.exe' -EA SilentlyContinue;Write-Host 'Added process exclusion: TRIP.exe';Write-Host '';Write-Host 'TRIP exclusions added to Windows Defender.';pause`
             },
             {
-                text: 'Remove Exclusion', style: 'secondary', action: 'powershell',
-                command: `
-                    $paths=@("$env:LOCALAPPDATA\\TRIP","$env:LOCALAPPDATA\\TRIP\\TRIP.exe","$env:USERPROFILE\\Desktop\\TRIP.exe","$env:USERPROFILE\\Downloads\\TRIP.exe")
-                    $paths|ForEach-Object{Remove-MpPreference -ExclusionPath $_ -EA SilentlyContinue}
-                    Remove-MpPreference -ExclusionProcess 'TRIP.exe' -EA SilentlyContinue
-                    Write-Host 'TRIP exclusions removed from Windows Defender.'
-                `
+                text: 'Remove Exclusion', style: 'secondary', action: 'powershell-window',
+                command: `$paths=@(\"$env:LOCALAPPDATA\\TRIP\",\"$env:LOCALAPPDATA\\TRIP\\TRIP.exe\",\"$env:USERPROFILE\\Desktop\\TRIP.exe\",\"$env:USERPROFILE\\Downloads\\TRIP.exe\");$paths|ForEach-Object{Remove-MpPreference -ExclusionPath $_ -EA SilentlyContinue};Remove-MpPreference -ExclusionProcess 'TRIP.exe' -EA SilentlyContinue;Write-Host 'TRIP exclusions removed from Windows Defender.';pause`
             },
             {
-                text: 'Check Exclusions', style: 'secondary', action: 'powershell',
-                command: `
-                    Write-Host '=== Defender Exclusions ==='
-                    $prefs=Get-MpPreference
-                    Write-Host 'Path Exclusions:'
-                    $prefs.ExclusionPath|ForEach-Object{Write-Host "  $_"}
-                    Write-Host ''
-                    Write-Host 'Process Exclusions:'
-                    $prefs.ExclusionProcess|ForEach-Object{Write-Host "  $_"}
-                `
+                text: 'Check Exclusions', style: 'secondary', action: 'powershell-window',
+                command: `Write-Host '=== Defender Exclusions ===';$prefs=Get-MpPreference;Write-Host 'Path Exclusions:';$prefs.ExclusionPath|ForEach-Object{Write-Host \"  $_\"};Write-Host '';Write-Host 'Process Exclusions:';$prefs.ExclusionProcess|ForEach-Object{Write-Host \"  $_\"};pause`
             }
         ]
     }
@@ -1066,12 +1046,18 @@ async function showStartupViewDialog() {
                     e.stopPropagation();
                     const itemName = btn.dataset.name;
                     const source = btn.dataset.source;
+                    const itemPath = btn.dataset.path;
+                    // Temporarily hide the startup view dialog so the confirm dialog is visible
+                    overlay.style.display = 'none';
                     const confirmed = await showConfirmDialog('Remove Startup Item', `Remove "${itemName}" from startup?`);
-                    if (!confirmed) return;
+                    if (!confirmed) {
+                        overlay.style.display = '';
+                        return;
+                    }
+                    overlay.style.display = '';
                     if (source === 'REG') {
                         await window.invokeX.runPowerShell(`Remove-ItemProperty -Path 'HKCU:\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run' -Name '${itemName.replace(/'/g, "''")}' -Force -EA SilentlyContinue; Write-Host 'Removed: ${itemName}'`);
                     } else {
-                        const itemPath = btn.dataset.path;
                         await window.invokeX.runPowerShell(`Remove-Item '${itemPath.replace(/'/g, "''")}' -Force -EA SilentlyContinue; Write-Host 'Removed: ${itemName}'`);
                     }
                     logToTerminal(`Removed startup item: ${itemName}`, 'SUCCESS');
