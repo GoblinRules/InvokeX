@@ -107,14 +107,28 @@ ipcMain.handle('restart-as-admin', async () => {
     const exePath = process.execPath;
     const args = process.argv.slice(1);
     try {
-        spawn('powershell', [
-            'Start-Process',
-            `"${exePath}"`,
-            '-ArgumentList', `"${args.join(' ')}"`,
-            '-Verb', 'RunAs'
-        ], { detached: true, shell: true });
-        app.quit();
+        // Build the PowerShell command with proper escaping for paths with spaces
+        const escapedExe = exePath.replace(/'/g, "''");
+        let psCommand = `Start-Process -FilePath '${escapedExe}' -Verb RunAs`;
+        if (args.length > 0) {
+            const escapedArgs = args.join(' ').replace(/'/g, "''");
+            psCommand += ` -ArgumentList '${escapedArgs}'`;
+        }
+
+        writeLog('INFO', `Restarting as admin: ${psCommand}`);
+
+        exec(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psCommand.replace(/"/g, '\\"')}"`, (err) => {
+            if (err) {
+                writeLog('ERROR', `Failed to relaunch as admin: ${err.message}`);
+            }
+        });
+
+        // Give the elevated process a moment to launch before quitting
+        setTimeout(() => {
+            app.quit();
+        }, 1500);
     } catch (e) {
+        writeLog('ERROR', `restart-as-admin error: ${e.message}`);
         return { error: e.message };
     }
 });
