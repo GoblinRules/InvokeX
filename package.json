@@ -1,0 +1,46 @@
+{
+    "name": "invokex",
+    "version": "2.0.0",
+    "description": "Modern GUI application for installing Windows applications and system tweaks",
+    "main": "main.js",
+    "author": "GoblinRules",
+    "license": "MIT",
+    "homepage": "https://github.com/GoblinRules/InvokeX",
+    "scripts": {
+        "dev": "electron .",
+        "build": "electron-builder",
+        "dist": "electron-builder --win"
+    },
+    "devDependencies": {
+        "electron": "^33.0.0",
+        "electron-builder": "^25.0.0"
+    },
+    "build": {
+        "appId": "com.goblinrules.invokex",
+        "productName": "InvokeX",
+        "win": {
+            "target": [
+                "portable",
+                "nsis"
+            ],
+            "icon": "assets/icon1.ico"
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true
+        },
+        "portable": {
+            "artifactName": "InvokeX.exe"
+        },
+        "files": [
+            "main.js",
+            "preload.js",
+            "index.html",
+            "styles.css",
+            "renderer.js",
+            "assets/**"
+        ]
+    }
+}

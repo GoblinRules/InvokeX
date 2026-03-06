@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InvokeX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <!-- Admin Warning Banner (hidden by default) -->
+  <div id="admin-banner" class="admin-banner hidden">
+    <div class="admin-banner-content">
+      <span class="admin-banner-icon">⚠️</span>
+      <span class="admin-banner-text">Running without administrator privileges. Some operations may require
+        elevation.</span>
+      <button id="restart-admin-btn" class="admin-banner-btn">Restart as Admin</button>
+      <button id="dismiss-admin-btn" class="admin-banner-dismiss">✕</button>
+    </div>
+  </div>
+
+  <!-- Update Banner (hidden by default) -->
+  <div id="update-banner" class="update-banner hidden">
+    <div class="admin-banner-content">
+      <span class="admin-banner-icon">🚀</span>
+      <span class="admin-banner-text" id="update-text">A new version is available!</span>
+      <button id="update-download-btn" class="admin-banner-btn" style="background: var(--btn-success);">Download
+        Update</button>
+      <button id="update-dismiss-btn" class="admin-banner-dismiss">✕</button>
+    </div>
+  </div>
+
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-container">
+          <img src="assets/icon1.png" class="logo-icon-img" alt="InvokeX">
+          <div class="logo-text">
+            <h1>InvokeX</h1>
+            <span class="version-badge">v2.0</span>
+          </div>
+          <button class="theme-toggle" id="theme-toggle" title="Toggle theme (Ctrl+T)">🌙</button>
+        </div>
+      </div>
+
+      <div class="sidebar-nav">
+        <button class="nav-item active" data-page="apps">
+          <span class="nav-icon">📦</span>
+          <span class="nav-label">Applications</span>
+          <span class="nav-shortcut">Ctrl+1</span>
+        </button>
+        <button class="nav-item" data-page="tweaks">
+          <span class="nav-icon">🔧</span>
+          <span class="nav-label">System Tweaks</span>
+          <span class="nav-shortcut">Ctrl+2</span>
+        </button>
+        <button class="nav-item" data-page="nettools">
+          <span class="nav-icon">📡</span>
+          <span class="nav-label">Network Tools</span>
+          <span class="nav-shortcut">Ctrl+3</span>
+        </button>
+        <button class="nav-item" data-page="netdiag">
+          <span class="nav-icon">🌐</span>
+          <span class="nav-label">Net Diagnostics</span>
+          <span class="nav-shortcut">Ctrl+4</span>
+        </button>
+        <button class="nav-item" data-page="system">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">System</span>
+          <span class="nav-shortcut">Ctrl+5</span>
+        </button>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-shortcuts">
+          <button class="sidebar-shortcut-btn" id="shortcut-controlpanel" title="Control Panel">🛠️ Control
+            Panel</button>
+          <button class="sidebar-shortcut-btn" id="shortcut-settings" title="Windows Settings">⚙️ Settings</button>
+          <button class="sidebar-shortcut-btn" id="shortcut-terminal" title="Windows Terminal">💻 Terminal</button>
+          <button class="sidebar-shortcut-btn sidebar-shortcut-danger" id="shortcut-reboot" title="Restart PC">🔄
+            Restart</button>
+        </div>
+        <div class="admin-status" id="admin-status">
+          <span class="status-dot"></span>
+          <span class="status-text">Checking...</span>
+        </div>
+        <div class="windows-version" id="windows-version"></div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Search Bar -->
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" class="search-input" placeholder="Search apps and tweaks... (Ctrl+K)"
+          autocomplete="off">
+        <span class="search-shortcut" id="search-clear">✕</span>
+      </div>
+
+      <!-- Batch Action Bar (hidden by default) -->
+      <div class="batch-bar hidden" id="batch-bar">
+        <span class="batch-count" id="batch-count">0 selected</span>
+        <button class="btn btn-primary btn-sm" id="batch-install-btn">Install Selected</button>
+        <button class="btn btn-secondary btn-sm" id="batch-clear-btn">Clear Selection</button>
+      </div>
+
+      <!-- Applications Page -->
+      <div class="page active" id="page-apps">
+        <div class="page-header">
+          <h2>Application Installer</h2>
+          <p>Install and manage essential Windows applications</p>
+        </div>
+        <div class="cards-grid" id="apps-grid">
+          <!-- Populated by renderer.js -->
+        </div>
+      </div>
+
+      <!-- System Tweaks Page -->
+      <div class="page" id="page-tweaks">
+        <div class="page-header">
+          <h2>System Tweaks</h2>
+          <p id="tweaks-subtitle">Customize Windows settings and behavior</p>
+        </div>
+        <div class="cards-grid" id="tweaks-grid">
+          <!-- Populated by renderer.js -->
+        </div>
+      </div>
+
+      <!-- Network Tools Page -->
+      <div class="page" id="page-nettools">
+        <div class="page-header">
+          <h2>Network Tools</h2>
+          <p>Ping, Tracert, Flush DNS, IPConfig — quick network diagnostic commands</p>
+        </div>
+        <div class="nettools-container">
+          <div class="nettools-grid">
+            <!-- Ping Card -->
+            <div class="card nettools-card">
+              <div class="card-header">
+                <div class="card-title">📡 Ping</div>
+                <div class="card-desc">Send ICMP echo requests to a host</div>
+              </div>
+              <div class="nettools-form">
+                <label>Address</label>
+                <input type="text" id="ping-address" class="nettools-input" placeholder="8.8.8.8" value="8.8.8.8">
+                <label>Count (0 = continuous)</label>
+                <input type="number" id="ping-count" class="nettools-input" placeholder="4" value="4" min="0">
+                <div class="nettools-check">
+                  <input type="checkbox" id="ping-log">
+                  <label for="ping-log">Save to log file on Desktop</label>
+                </div>
+                <button class="btn btn-primary" id="ping-run-btn">▶ Run Ping</button>
+              </div>
+            </div>
+            <!-- Tracert Card -->
+            <div class="card nettools-card">
+              <div class="card-header">
+                <div class="card-title">🔀 Traceroute</div>
+                <div class="card-desc">Trace the route to a destination host</div>
+              </div>
+              <div class="nettools-form">
+                <label>Address</label>
+                <input type="text" id="tracert-address" class="nettools-input" placeholder="8.8.8.8" value="8.8.8.8">
+                <div class="nettools-check">
+                  <input type="checkbox" id="tracert-log">
+                  <label for="tracert-log">Save to log file on Desktop</label>
+                </div>
+                <button class="btn btn-primary" id="tracert-run-btn">▶ Run Traceroute</button>
+              </div>
+            </div>
+            <!-- Quick Actions Card -->
+            <div class="card nettools-card">
+              <div class="card-header">
+                <div class="card-title">⚡ Quick Actions</div>
+                <div class="card-desc">Common network commands</div>
+              </div>
+              <div class="nettools-form">
+                <button class="btn btn-secondary" id="nettools-flushdns">🔄 Flush DNS</button>
+                <button class="btn btn-secondary" id="nettools-ipconfig">📋 IPConfig</button>
+                <button class="btn btn-secondary" id="nettools-ipconfigall">📋 IPConfig /all</button>
+                <button class="btn btn-secondary" id="nettools-netinfo">🔍 Network Info</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Page -->
+      <div class="page" id="page-system">
+        <div class="page-header">
+          <h2>System</h2>
+          <p>Hardware specifications, OS details, and system resources</p>
+        </div>
+        <div class="sysinfo-dashboard" id="sysinfo-dashboard">
+          <div class="sysinfo-loading" id="sysinfo-loading">
+            <div class="netdiag-spinner"></div>
+            <span>Gathering system information...</span>
+          </div>
+          <div class="sysinfo-grid hidden" id="sysinfo-grid">
+            <!-- Row 1: Larger cards -->
+            <!-- OS -->
+            <div class="sysinfo-card">
+              <div class="sysinfo-card-header"><span class="sysinfo-icon">💻</span> Operating System</div>
+              <div class="sysinfo-card-body" id="sysinfo-os"></div>
+            </div>
+            <!-- CPU -->
+            <div class="sysinfo-card">
+              <div class="sysinfo-card-header"><span class="sysinfo-icon">🧠</span> CPU</div>
+              <div class="sysinfo-card-body" id="sysinfo-cpu"></div>
+            </div>
+            <!-- Network -->
+            <div class="sysinfo-card">
+              <div class="sysinfo-card-header"><span class="sysinfo-icon">🌐</span> Network</div>
+              <div class="sysinfo-card-body" id="sysinfo-network"></div>
+            </div>
+            <!-- Row 2: Smaller cards -->
+            <!-- RAM -->
+            <div class="sysinfo-card">
+              <div class="sysinfo-card-header"><span class="sysinfo-icon">📊</span> RAM</div>
+              <div class="sysinfo-card-body" id="sysinfo-ram"></div>
+            </div>
+            <!-- GPU -->
+            <div class="sysinfo-card">
+              <div class="sysinfo-card-header"><span class="sysinfo-icon">🎮</span> Graphics</div>
+              <div class="sysinfo-card-body" id="sysinfo-gpu"></div>
+            </div>
+            <!-- Motherboard -->
+            <div class="sysinfo-card">
+              <div class="sysinfo-card-header"><span class="sysinfo-icon">🔌</span> Motherboard</div>
+              <div class="sysinfo-card-body" id="sysinfo-mobo"></div>
+            </div>
+            <!-- Storage (full width) -->
+            <div class="sysinfo-card sysinfo-card-wide">
+              <div class="sysinfo-card-header"><span class="sysinfo-icon">💾</span> Storage</div>
+              <div class="sysinfo-card-body" id="sysinfo-storage"></div>
+            </div>
+          </div>
+          <button class="btn btn-secondary" id="sysinfo-refresh" style="margin-top:16px">🔄 Refresh System Info</button>
+        </div>
+      </div>
+
+      <!-- Network Diagnostics Page -->
+      <div class="page" id="page-netdiag">
+        <div class="page-header">
+          <h2>Network Diagnostics</h2>
+          <p>NetTriage — quickly diagnose LAN vs Internet connectivity issues</p>
+        </div>
+        <div class="netdiag-container">
+          <button class="btn btn-primary btn-lg" id="run-netdiag-btn">▶ Run Network Diagnostics</button>
+          <div class="netdiag-progress hidden" id="netdiag-progress">
+            <div class="netdiag-spinner"></div>
+            <span id="netdiag-status-text">Running tests...</span>
+          </div>
+          <div class="netdiag-results hidden" id="netdiag-results">
+            <div class="netdiag-section">
+              <h3>🌐 Environment</h3>
+              <div class="netdiag-grid" id="netdiag-env"></div>
+            </div>
+            <div class="netdiag-section">
+              <h3>📡 Latency (Ping)</h3>
+              <div class="netdiag-grid" id="netdiag-ping"></div>
+            </div>
+            <div class="netdiag-section">
+              <h3>🔌 TCP Port 443</h3>
+              <div class="netdiag-grid" id="netdiag-tcp"></div>
+            </div>
+            <div class="netdiag-section">
+              <h3>🔤 DNS Resolution</h3>
+              <div class="netdiag-grid" id="netdiag-dns"></div>
+            </div>
+            <div class="netdiag-section">
+              <h3>🌍 HTTP/S Requests</h3>
+              <div class="netdiag-grid" id="netdiag-http"></div>
+            </div>
+            <div class="netdiag-section">
+              <h3>🚀 Speed Test</h3>
+              <div class="netdiag-grid" id="netdiag-speed"></div>
+              <div class="speed-bar-container hidden" id="speed-progress">
+                <div class="speed-bar" id="speed-bar"></div>
+              </div>
+            </div>
+            <div class="netdiag-diagnosis" id="netdiag-diagnosis"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Terminal -->
+      <div class="terminal-panel" id="terminal-panel">
+        <div class="terminal-drag-handle" id="terminal-drag-handle"></div>
+        <div class="terminal-header">
+          <div class="terminal-title">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span>Terminal</span>
+          </div>
+          <div class="terminal-controls">
+            <button id="expand-terminal-btn" class="terminal-control-btn" title="Expand (Ctrl+`)">⬆</button>
+            <button id="collapse-terminal-btn" class="terminal-control-btn" title="Collapse">⬇</button>
+            <button id="clear-terminal-btn" class="terminal-clear-btn">Clear</button>
+          </div>
+        </div>
+        <div class="terminal-body" id="terminal-output">
+          <!-- Log entries appear here -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Results Popup -->
+  <div class="results-overlay hidden" id="results-overlay">
+    <div class="results-box">
+      <div class="results-header">
+        <h3 class="results-title" id="results-title">Results</h3>
+        <button class="results-close" id="results-close">✕</button>
+      </div>
+      <div class="results-body" id="results-body"></div>
+      <div class="results-footer">
+        <button class="btn btn-secondary" id="results-dismiss">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Dialog -->
+  <div class="dialog-overlay hidden" id="confirm-overlay">
+    <div class="dialog-box">
+      <div class="dialog-title" id="confirm-title">Confirm</div>
+      <div class="dialog-desc" id="confirm-desc">Are you sure?</div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" id="confirm-cancel">Cancel</button>
+        <button class="btn btn-danger" id="confirm-ok">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+
+</html>

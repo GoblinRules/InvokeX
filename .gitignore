@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+
+# Logs
+logs/
+*.log
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Electron builder
+*.exe
+*.msi
+*.dmg
+*.AppImage
+*.snap
+
+# Temp
+*.tmp
