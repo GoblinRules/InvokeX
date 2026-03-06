@@ -1,211 +1,222 @@
-# InvokeX
+<p align="center">
+  <img src="assets/icon1.png" width="120" alt="InvokeX Icon" />
+</p>
 
-A modern, user-friendly GUI application for installing popular Windows applications and applying system tweaks. Features a beautiful interface with real-time logging, auto-scaling, and comprehensive error handling.
+<h1 align="center">InvokeX</h1>
+
+<p align="center">
+  <strong>Modern Windows Toolkit — App Installer, System Tweaks & Network Diagnostics</strong><br>
+  Built with Electron · Portable EXE · No Dependencies Required
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-2.0.1-blueviolet?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/platform-Windows_10%2F11-0078D6?style=flat-square&logo=windows" alt="Platform" />
+  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" />
+  <img src="https://img.shields.io/github/downloads/GoblinRules/InvokeX/total?style=flat-square&color=orange" alt="Downloads" />
+</p>
+
+---
 
 ## 🚀 Quick Install
 
-### One-Line Installation (Recommended)
 ```powershell
 irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex
 ```
 
-### Manual Installation
-1. Clone this repository
-2. Ensure Python 3.6+ is installed
-3. Run `python app_installer.py`
+Or download the portable EXE directly from [Releases](https://github.com/GoblinRules/InvokeX/releases/latest).
+
+---
+
+## 📸 Screenshots
+
+### Application Installer — Dark & Light Themes
+
+<p align="center">
+  <img src="assets/screenshots/ClearShot_20260306_081810.png" width="49%" alt="App Installer - Dark Theme" />
+  <img src="assets/screenshots/ClearShot_20260306_081821.png" width="49%" alt="App Installer - Light Theme" />
+</p>
+
+### System Tweaks
+
+<p align="center">
+  <img src="assets/screenshots/ClearShot_20260306_081902.png" width="80%" alt="System Tweaks" />
+</p>
+
+### Network Tools
+
+<p align="center">
+  <img src="assets/screenshots/ClearShot_20260306_081913.png" width="80%" alt="Network Tools" />
+</p>
+
+### System Information
+
+<p align="center">
+  <img src="assets/screenshots/ClearShot_20260306_081927.png" width="49%" alt="System Info - Loading" />
+  <img src="assets/screenshots/ClearShot_20260306_082039.png" width="49%" alt="System Info - Details" />
+</p>
+
+---
 
 ## ✨ Features
 
-### 🎯 **Application Installation**
-- **PyAutoClicker** - Automated clicking utility
-- **IP Python Tray App** - System tray IP address display
-- **PowerEventProvider** - Power management event provider
-- **CTT WinUtil** - Windows utility collection
-- **MASS** - Microsoft Activation Scripts
+### 📦 Application Installer
+Install and manage essential Windows applications with one click:
+- **TRIP (Tray IP)** — Lightweight system tray IP monitor
+- **ClearShot** — Screenshot tool with region capture & annotation
+- **SlickClick** — Lightweight auto-clicker
+- **PyAutoClicker** — Automated clicking utility
+- **IP Python Tray App** — System tray IP display (legacy)
+- **PowerEventProvider** — Power management event provider service
+- **CTT WinUtil** — ChrisTitusTech's Windows utility collection
+- **MASS** — Microsoft Activation Scripts
+- **Tailscale** — VPN and secure networking mesh
+- **MuMu Player** — Android emulator for Windows
+- **Ninite** — Essential apps bundle (7-Zip, Chrome, Firefox, Notepad++)
 
-### 🔧 **System Tweaks**
-- Remove shutdown option from startup power menu
-- View power management event logs
+Each app card shows real-time install status, category tags, and links to source repositories.
 
-### 🎨 **Modern UI**
-- **Auto-scaling** - Responsive design that adapts to window resizing
-- **Scrollable content** - Easy navigation through all options
-- **Real-time terminal** - Live logging with color-coded messages
-- **Status indicators** - Shows which apps are already installed
-- **Professional styling** - Clean, modern interface
+### 🔧 System Tweaks
+11 powerful system configuration tools:
+- Hide Shutdown Options from power menu
+- Set Chrome as Default Browser
+- Power Management Settings (never sleep, display always on)
+- Power Actions with countdown (Restart / Shutdown)
+- Prevent User Account Creation via Group Policy
+- Create Admin Account with proper group membership
+- Enable/Disable Remote Desktop with firewall rules
+- Windows Update Configuration (Default / Security / Disable)
+- Startup Programs Manager
+- Hosts File Editor
+- Network Settings (DNS, Flush DNS, Winsock reset)
+- Defender Exclusion for TRIP
 
-### 🛡️ **Smart Features**
-- **Automatic Python detection** - Finds Python installations automatically
-- **Admin privilege management** - Detects and offers to restart with elevated rights
-- **Comprehensive logging** - All operations logged to files and terminal
-- **Error handling** - Graceful fallbacks and user-friendly error messages
-- **Multiple installation methods** - Fallback options for failed installations
+### 🌐 Network Tools
+Built-in network diagnostics suite:
+- **Ping** — ICMP echo requests with configurable count
+- **Traceroute** — Route tracing to destination hosts
+- **Quick Actions** — Flush DNS, IPConfig, IPConfig /all, Network Info
+
+### 💻 System Information
+Comprehensive hardware overview:
+- OS details, CPU, RAM, GPU, Motherboard
+- Storage drives with visual usage bars and free space indicators
+- Network adapter listing
+
+### 🎨 Premium UI
+- **Dual theme** — Dark (glassmorphism) and Light modes with toggle
+- **Integrated terminal** — Real-time color-coded command output
+- **Search** — Global search bar (Ctrl+K) across all sections
+- **Keyboard shortcuts** — Navigate sections with Ctrl+1 through Ctrl+5
+- **Admin detection** — Status indicator and one-click elevation
+- **Batch operations** — Select and install multiple apps at once
+- **Toast notifications** — Non-intrusive success/error feedback
+
+---
 
 ## 📋 Requirements
 
-- **Windows 10/11**
-- **Python 3.6+** (automatically detected/installed)
-- **Internet connection** (for downloads and installations)
-- **Administrator privileges** (recommended for some operations)
+- **Windows 10 or 11**
+- **Internet connection** (for downloads)
+- **Administrator privileges** (recommended — some tweaks require elevation)
 
-## 🚀 Installation Methods
+No Python, Node.js, or other runtime needed — InvokeX is a self-contained portable EXE.
 
-### Method 1: PowerShell One-Liner (Easiest)
+---
+
+## 🚀 Installation
+
+### Method 1: PowerShell One-Liner (Recommended)
 ```powershell
 irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex
 ```
 
 This will:
-- ✅ Check if Python is installed
-- ✅ Install Python automatically if needed
-- ✅ Download all application files
-- ✅ Install to `C:\Tools\InvokeX`
-- ✅ Create desktop shortcut with custom icon
-- ✅ Set up start menu integration
-- ✅ Create uninstaller
+- ✅ Download `InvokeX.exe` (~75 MB) to `C:\Tools\InvokeX`
+- ✅ Create Desktop shortcut with custom icon
+- ✅ Create Start Menu shortcut
+- ✅ Optionally launch the app immediately
 
-### Method 2: Manual Installation
-```bash
-# Clone the repository
-git clone https://github.com/GoblinRules/InvokeX.git
-cd InvokeX
-
-# Install Python dependencies (if any)
-pip install -r requirements.txt
-
-# Run the application
-python app_installer.py
-```
-
-### Method 3: Batch File
-```batch
-# Run the included batch file
-run_installer.bat
-```
-
-## 🎮 Usage
-
-### Starting the Application
-1. **Desktop Shortcut** - Double-click the created `InvokeX.lnk` shortcut
-2. **Start Menu** - Search for "InvokeX" in the Start Menu
-3. **Command Line** - Run `python "C:\Tools\InvokeX\app_installer.py"`
-
-### Installing Applications
-1. Go to the **Apps** tab
-2. Click the **Install** button for your desired application
-3. Monitor progress in the terminal window
-4. Check installation status indicators
-
-### Applying System Tweaks
-1. Go to the **Tweaks** tab
-2. Click the **Apply** button for desired tweaks
-3. Monitor progress in the terminal window
-
-### Terminal Output
-- **Green** - Information messages
-- **Cyan** - Success messages
-- **Yellow** - Warning messages
-- **Red** - Error messages
-- **Clear button** - Clears terminal output
-
-## 🔧 Advanced Options
-
-### PowerShell Installer Options
-```powershell
-# Show help
-irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex -Help
-
-# Force Python installation
-irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex -Force
-```
-
-### Manual Python Installation
-If the automatic Python installer fails:
-1. Download Python from [python.org](https://www.python.org/downloads/)
-2. Install with "Add to PATH" option checked
-3. Restart your terminal/PowerShell
-4. Run the installer again
-
-## 📁 File Structure
-
-```
-C:\Tools\InvokeX\
-├── app_installer.py      # Main GUI application
-├── install.ps1           # PowerShell installer script
-├── requirements.txt      # Python dependencies
-├── run_installer.bat    # Windows batch file
-├── README.md            # This file
-├── icon.ico             # Custom application icon
-├── uninstall.ps1        # Uninstaller script
-└── logs/                # Application logs (created automatically)
-```
-
-## 🗑️ Uninstallation
-
-### Using the Uninstaller
-```powershell
-powershell -ExecutionPolicy Bypass -File "C:\Tools\InvokeX\uninstall.ps1"
-```
-
-### Manual Uninstallation
-1. Delete the `C:\Tools\InvokeX` directory
-2. Remove desktop shortcut `InvokeX.lnk`
-3. Remove start menu shortcuts from `%APPDATA%\Microsoft\Windows\Start Menu\Programs\InvokeX`
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Python Not Found
-- The installer will automatically detect and install Python
-- Use `-Force` flag to force Python installation
-- Ensure Python is added to PATH during installation
-
-#### Permission Errors
-- Run as Administrator for best results
-- The app will detect admin status and offer to restart with elevated privileges
-
-#### Installation Failures
-- Check the terminal output for detailed error messages
-- Verify internet connection
-- Ensure Windows Defender/antivirus isn't blocking downloads
-
-#### MSI Installation Issues
-- The app automatically handles MSI installation failures
-- Offers manual installation options when automated methods fail
-- Provides detailed error logging for troubleshooting
-
-### Log Files
-All operations are logged to timestamped files in the `logs/` directory:
-- `installer_YYYYMMDD_HHMMSS.log` - Application logs
-- Terminal output shows real-time status
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- **PyAutoClicker** - [GoblinRules](https://github.com/GoblinRules/PyAutoClicker)
-- **IP Python Tray App** - [GoblinRules](https://github.com/GoblinRules/ippy-tray-app)
-- **PowerEventProvider** - [GoblinRules](https://github.com/GoblinRules/powereventprovider)
-- **CTT WinUtil** - [ChrisTitusTech](https://github.com/ChrisTitusTech/winutil)
-- **MASS** - [massgravel](https://github.com/massgravel/Microsoft-Activation-Scripts)
-
-## 📞 Support
-
-- **Issues**: Create an issue on [GitHub](https://github.com/GoblinRules/InvokeX/issues)
-- **Discussions**: Use GitHub Discussions for questions
-- **Wiki**: Check the GitHub Wiki for detailed guides
+### Method 2: Direct Download
+1. Go to [Releases](https://github.com/GoblinRules/InvokeX/releases/latest)
+2. Download `InvokeX.exe`
+3. Run it from anywhere — it's fully portable
 
 ---
 
-**Made with ❤️ by [GoblinRules](https://github.com/GoblinRules) for the Windows community**
+## 🎮 Usage
+
+| Action | How |
+|---|---|
+| **Launch** | Double-click `InvokeX.exe` or the Desktop shortcut |
+| **Switch sections** | Click sidebar or press `Ctrl+1` through `Ctrl+5` |
+| **Search** | `Ctrl+K` to focus the search bar |
+| **Toggle theme** | Click the ☀️/🌙 icon in the header |
+| **Restart as Admin** | Click banner or use the Restart button in sidebar |
+| **Batch install** | Check app cards → batch actions appear |
+
+### Terminal Output Colors
+| Color | Meaning |
+|---|---|
+| 🟢 Green | Success |
+| 🔵 Blue | Information |
+| 🟡 Yellow | Warning |
+| 🔴 Red | Error |
+
+---
+
+## 📁 Project Structure
+
+```
+InvokeX/
+├── main.js              # Electron main process (IPC, downloads, system ops)
+├── preload.js           # Context bridge (secure IPC exposure)
+├── index.html           # Application shell
+├── styles.css           # Full design system (dark/light themes)
+├── renderer.js          # UI logic, app cards, tweaks, diagnostics
+├── install.ps1          # PowerShell installer script
+├── package.json         # Electron + builder configuration
+├── assets/
+│   ├── icon1.ico        # Application icon
+│   ├── icon1.png        # Application icon (PNG)
+│   ├── screenshots/     # README screenshots
+│   └── scripts/         # Bundled PowerShell scripts (NetTriage, etc.)
+└── logs/                # Session logs (created at runtime)
+```
+
+---
+
+## 🗑️ Uninstallation
+
+1. Delete `C:\Tools\InvokeX`
+2. Remove Desktop shortcut (`InvokeX.lnk`)
+3. Remove Start Menu folder: `%APPDATA%\Microsoft\Windows\Start Menu\Programs\InvokeX`
+
+---
+
+## 🛠️ Development
+
+```bash
+# Clone and install dependencies
+git clone https://github.com/GoblinRules/InvokeX.git
+cd InvokeX
+npm install
+
+# Run in development mode
+npm run dev
+
+# Build portable EXE + NSIS installer
+npm run dist
+```
+
+---
+
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+<p align="center">
+  <strong>Made with ❤️ by <a href="https://github.com/GoblinRules">GoblinRules</a></strong>
+</p>
