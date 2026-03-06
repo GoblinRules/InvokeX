@@ -87,15 +87,19 @@ Write-Step "Downloading InvokeX..."
 # Check if git is available
 $hasGit = $false
 try {
-    $null = git --version 2>$null
+    $ErrorActionPreference = 'Continue'
+    $null = git --version 2>&1
     if ($LASTEXITCODE -eq 0) { $hasGit = $true }
-} catch {}
+    $ErrorActionPreference = 'Stop'
+} catch { $ErrorActionPreference = 'Stop' }
 
 if (Test-Path $installDir) {
     if (Test-Path "$installDir\.git") {
         Write-Host "  Existing installation found. Pulling latest updates..." -ForegroundColor Yellow
         Push-Location $installDir
-        git pull origin main 2>$null
+        $ErrorActionPreference = 'Continue'
+        git pull origin main 2>&1 | Out-Null
+        $ErrorActionPreference = 'Stop'
         Pop-Location
         Write-OK "Updated to latest version"
     } else {
@@ -109,8 +113,11 @@ if (Test-Path $installDir) {
 if (-not (Test-Path $installDir)) {
     if ($hasGit) {
         Write-Host "  Cloning repository..." -ForegroundColor Yellow
-        git clone $repoUrl $installDir 2>$null
-        if ($LASTEXITCODE -ne 0) {
+        $ErrorActionPreference = 'Continue'
+        git clone $repoUrl $installDir 2>&1 | Out-Null
+        $cloneExit = $LASTEXITCODE
+        $ErrorActionPreference = 'Stop'
+        if ($cloneExit -ne 0) {
             Write-Err "Git clone failed. Falling back to ZIP download..."
             $hasGit = $false
         } else {
