@@ -1821,6 +1821,84 @@ document.getElementById('nettools-netinfo').addEventListener('click', async () =
     await runAndShowPopup('Network Info', `Get-NetAdapter|Where-Object{$_.Status -eq 'Up'}|ForEach-Object{$ip=Get-NetIPAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4 -EA SilentlyContinue;$dns=Get-DnsClientServerAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4 -EA SilentlyContinue;Write-Host "Adapter: $($_.Name) [$($_.LinkSpeed)]";Write-Host "  IP: $($ip.IPAddress)";Write-Host "  DNS: $($dns.ServerAddresses -join ', ')";Write-Host "  MAC: $($_.MacAddress)";Write-Host ''}`);
 });
 
+document.getElementById('lattest-run-btn').addEventListener('click', async () => {
+    const dest = document.getElementById('lattest-dest').value.trim();
+    if (!dest) {
+        showToast('Please enter a destination', 'warning');
+        document.getElementById('lattest-dest').focus();
+        return;
+    }
+    const safeDest = dest.replace(/[^a-zA-Z0-9.\-:]/g, '');
+    const port = parseInt(document.getElementById('lattest-port').value) || 443;
+    const pingCount = parseInt(document.getElementById('lattest-pingcount').value) || 20;
+    const tcpCount = parseInt(document.getElementById('lattest-tcpcount').value) || 20;
+    const doTracert = document.getElementById('lattest-tracert').checked;
+
+    logToTerminal(`Latency Test: ${safeDest}:${port} (ping×${pingCount}, tcp×${tcpCount})`, 'INFO');
+
+    const tracertBlock = doTracert
+        ? `Write-Host '';Write-Host '---- Traceroute ----';cmd /c "tracert -d ${safeDest}"|ForEach-Object{Write-Host $_}`
+        : '';
+
+    const cmd = `
+$ErrorActionPreference='SilentlyContinue'
+$cfg=Get-NetIPConfiguration|Where-Object{$_.NetAdapter.Status -eq 'Up' -and $_.IPv4DefaultGateway -and $_.IPv4Address}|Sort-Object @{Expression={if($_.InterfaceAlias -match 'Wi-?Fi|Ethernet'){0}else{1}}}|Select-Object -First 1
+$gw=if($cfg){$cfg.IPv4DefaultGateway.NextHop}else{'192.168.1.1'}
+$kg='1.1.1.1'
+Write-Host "==== Latency Test: ${safeDest}:${port} ===="
+Write-Host "Gateway: $gw | Known-good: $kg"
+Write-Host "Ping count: ${pingCount} | TCP samples: ${tcpCount}"
+Write-Host ''
+
+function Get-PS{param([string]$T,[int]$C)
+  $r=Test-Connection -TargetName $T -Count $C -EA SilentlyContinue
+  if(-not $r){return [pscustomobject]@{L=$C;LP=100;Mi=$null;Av=$null;Mx=$null}}
+  $mo=$r|Measure-Object ResponseTime -Minimum -Average -Maximum
+  $recv=$r.Count;$lost=$C-$recv;$lp=[math]::Round(($lost/$C)*100,2)
+  [pscustomobject]@{L=$lost;LP=$lp;Mi=[int]$mo.Minimum;Av=[math]::Round($mo.Average,1);Mx=[int]$mo.Maximum}
+}
+
+Write-Host "---- Gateway Ping ($gw) ----"
+$gp=Get-PS -T $gw -C ${pingCount}
+Write-Host ("  Loss: {0}%  Min: {1} ms  Avg: {2} ms  Max: {3} ms" -f $gp.LP,$(if($gp.Mi -ne $null){$gp.Mi}else{'N/A'}),$(if($gp.Av -ne $null){$gp.Av}else{'N/A'}),$(if($gp.Mx -ne $null){$gp.Mx}else{'N/A'}))
+Write-Host ''
+
+Write-Host "---- Known-Good Ping ($kg) ----"
+$kp=Get-PS -T $kg -C ${pingCount}
+Write-Host ("  Loss: {0}%  Min: {1} ms  Avg: {2} ms  Max: {3} ms" -f $kp.LP,$(if($kp.Mi -ne $null){$kp.Mi}else{'N/A'}),$(if($kp.Av -ne $null){$kp.Av}else{'N/A'}),$(if($kp.Mx -ne $null){$kp.Mx}else{'N/A'}))
+Write-Host ''
+
+Write-Host '---- TCP Latency (${safeDest}:${port}) ----'
+$results=1..${tcpCount}|ForEach-Object{
+  $sw=[Diagnostics.Stopwatch]::StartNew()
+  $c=New-Object Net.Sockets.TcpClient
+  try{$iar=$c.BeginConnect('${safeDest}',${port},$null,$null);if(-not $iar.AsyncWaitHandle.WaitOne(3000,$false)){throw 'timeout'};$c.EndConnect($iar);$sw.Stop();$sw.ElapsedMilliseconds}catch{$null}finally{$c.Close()}
+}
+$ok=$results|Where-Object{$_ -ne $null}
+if(-not $ok){Write-Host '  All connections failed/timed out'}
+else{
+  $s=$ok|Sort-Object;$avg=($ok|Measure-Object -Average).Average
+  $p95=$s[[math]::Max(0,[math]::Floor($s.Count*0.95)-1)]
+  $jitter=[math]::Round(($ok|ForEach-Object{[math]::Abs($_-$avg)}|Measure-Object -Average).Average,1)
+  Write-Host ("  Success: {0}/${tcpCount}" -f $ok.Count)
+  Write-Host ("  Min: {0} ms  Avg: {1} ms  P95: {2} ms  Max: {3} ms" -f [int]$s[0],[math]::Round($avg,1),[int]$p95,[int]$s[-1])
+  Write-Host ("  Jitter (abs): {0} ms" -f $jitter)
+}
+Write-Host ''
+
+${tracertBlock}
+
+Write-Host ''
+Write-Host '---- Diagnosis ----'
+if($gp.LP -ge 5 -or ($gp.Av -ne $null -and $gp.Av -ge 30)){Write-Host '  ⚠️ Likely local LAN/Wi-Fi/router issue (gateway ping is poor)'}
+elseif($kp.LP -ge 5 -or ($kp.Av -ne $null -and $kp.Av -ge 150)){Write-Host '  ⚠️ Likely ISP/upstream issue (known-good ping is poor)'}
+elseif($ok -and $ok.Count -lt [math]::Max(1,[math]::Floor(${tcpCount}*0.8))){Write-Host '  ⚠️ Likely firewall/routing issue to destination (many TCP failures)'}
+elseif($ok -and ($p95 -ge 500 -or $avg -ge 200)){Write-Host '  ⚠️ High latency/jitter on destination path (congestion or bufferbloat)'}
+else{Write-Host '  ✅ Looks generally OK'}
+`;
+    await runAndShowPopup(`Latency Test — ${safeDest}:${port}`, cmd);
+});
+
 // ──────────────────────────────────────────────
 // Initialization
 // ──────────────────────────────────────────────
