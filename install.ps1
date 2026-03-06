@@ -1,20 +1,15 @@
 # ═══════════════════════════════════════════════════════════════
-# InvokeX v2.0 — PowerShell Installer
+# InvokeX v2.0 — PowerShell Installer (Self-Contained)
 # ═══════════════════════════════════════════════════════════════
 # Usage: irm https://raw.githubusercontent.com/GoblinRules/InvokeX/main/install.ps1 | iex
 #
-# This installer will:
-# 1. Check/install Node.js if needed
-# 2. Clone or download InvokeX from GitHub
-# 3. Install npm dependencies
-# 4. Create desktop & start menu shortcuts
-# 5. Launch InvokeX
+# Downloads and installs the portable InvokeX.exe — no dependencies needed.
 # ═══════════════════════════════════════════════════════════════
 
 $ErrorActionPreference = "Stop"
 $installDir = "C:\Tools\InvokeX"
-$repoUrl = "https://github.com/GoblinRules/InvokeX.git"
-$repoZip = "https://github.com/GoblinRules/InvokeX/archive/refs/heads/main.zip"
+$exeName = "InvokeX.exe"
+$releaseUrl = "https://github.com/GoblinRules/InvokeX/releases/latest/download/InvokeX.exe"
 
 function Write-Step { param($msg) Write-Host "`n[$((Get-Date).ToString('HH:mm:ss'))] $msg" -ForegroundColor Cyan }
 function Write-OK   { param($msg) Write-Host "  ✓ $msg" -ForegroundColor Green }
@@ -41,124 +36,54 @@ try {
     exit 1
 }
 
-# ── 2. Check/Install Node.js ──
-Write-Step "Checking for Node.js..."
-$nodeInstalled = $false
-try {
-    $nodeVersion = node --version 2>$null
-    if ($LASTEXITCODE -eq 0 -and $nodeVersion) {
-        Write-OK "Node.js found: $nodeVersion"
-        $nodeInstalled = $true
-    }
-} catch {}
+# ── 2. Create install directory ──
+Write-Step "Preparing installation directory..."
+if (-not (Test-Path "C:\Tools")) {
+    New-Item -ItemType Directory -Path "C:\Tools" -Force | Out-Null
+}
+if (-not (Test-Path $installDir)) {
+    New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+    Write-OK "Created: $installDir"
+} else {
+    Write-OK "Directory exists: $installDir"
+}
 
-if (-not $nodeInstalled) {
-    Write-Warn "Node.js not found. Installing Node.js LTS..."
+# ── 3. Download InvokeX.exe ──
+Write-Step "Downloading InvokeX.exe (~75MB)..."
+$exePath = Join-Path $installDir $exeName
+try {
+    Write-Host "  This may take a minute depending on your connection..." -ForegroundColor Yellow
+    # Use BITS for reliable large file download with progress
+    $tempDownload = "$env:TEMP\InvokeX_download.exe"
+    Start-BitsTransfer -Source $releaseUrl -Destination $tempDownload -Description "Downloading InvokeX" -DisplayName "InvokeX Installer"
+    Move-Item $tempDownload $exePath -Force
+    $fileSizeMB = [math]::Round((Get-Item $exePath).Length / 1MB, 1)
+    Write-OK "Downloaded InvokeX.exe ($fileSizeMB MB)"
+} catch {
+    # Fallback to Invoke-WebRequest if BITS fails
+    Write-Warn "BITS transfer failed, trying direct download..."
     try {
-        # Download Node.js LTS installer
-        $nodeUrl = "https://nodejs.org/dist/v20.11.1/node-v20.11.1-x64.msi"
-        $nodeInstaller = "$env:TEMP\node-installer.msi"
-        Write-Host "  Downloading Node.js LTS..." -ForegroundColor Yellow
-        Invoke-WebRequest -Uri $nodeUrl -OutFile $nodeInstaller -UseBasicParsing
-        Write-Host "  Installing Node.js (this may take a minute)..." -ForegroundColor Yellow
-        Start-Process msiexec.exe -ArgumentList "/i", "`"$nodeInstaller`"", "/qn", "/norestart" -Wait
-        # Refresh PATH
-        $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
-        Start-Sleep -Seconds 3
-        $nodeVersion = node --version 2>$null
-        if ($nodeVersion) {
-            Write-OK "Node.js installed: $nodeVersion"
-        } else {
-            Write-Err "Node.js installation completed but 'node' not found in PATH."
-            Write-Warn "Please restart your terminal and run this installer again."
-            exit 1
-        }
-        Remove-Item $nodeInstaller -Force -ErrorAction SilentlyContinue
+        Invoke-WebRequest -Uri $releaseUrl -OutFile $exePath -UseBasicParsing
+        $fileSizeMB = [math]::Round((Get-Item $exePath).Length / 1MB, 1)
+        Write-OK "Downloaded InvokeX.exe ($fileSizeMB MB)"
     } catch {
-        Write-Err "Failed to install Node.js: $($_.Exception.Message)"
-        Write-Warn "Please install Node.js manually from https://nodejs.org and run this installer again."
+        Write-Err "Failed to download InvokeX.exe: $($_.Exception.Message)"
+        Write-Host "  Try downloading manually from: https://github.com/GoblinRules/InvokeX/releases" -ForegroundColor Yellow
         exit 1
     }
 }
 
-# ── 3. Download InvokeX ──
-Write-Step "Downloading InvokeX..."
-
-# Check if git is available
-$hasGit = $false
+# ── 4. Download icon for shortcuts ──
+$iconPath = Join-Path $installDir "icon.ico"
 try {
-    $ErrorActionPreference = 'Continue'
-    $null = git --version 2>&1
-    if ($LASTEXITCODE -eq 0) { $hasGit = $true }
-    $ErrorActionPreference = 'Stop'
-} catch { $ErrorActionPreference = 'Stop' }
-
-if (Test-Path $installDir) {
-    if (Test-Path "$installDir\.git") {
-        Write-Host "  Existing installation found. Pulling latest updates..." -ForegroundColor Yellow
-        Push-Location $installDir
-        $ErrorActionPreference = 'Continue'
-        git pull origin main 2>&1 | Out-Null
-        $ErrorActionPreference = 'Stop'
-        Pop-Location
-        Write-OK "Updated to latest version"
-    } else {
-        Write-Host "  Existing installation found (no git). Backing up and re-downloading..." -ForegroundColor Yellow
-        $backupDir = "${installDir}_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-        Rename-Item $installDir $backupDir
-        Write-OK "Backup created: $backupDir"
-    }
-}
-
-if (-not (Test-Path $installDir)) {
-    if ($hasGit) {
-        Write-Host "  Cloning repository..." -ForegroundColor Yellow
-        $ErrorActionPreference = 'Continue'
-        git clone $repoUrl $installDir 2>&1 | Out-Null
-        $cloneExit = $LASTEXITCODE
-        $ErrorActionPreference = 'Stop'
-        if ($cloneExit -ne 0) {
-            Write-Err "Git clone failed. Falling back to ZIP download..."
-            $hasGit = $false
-        } else {
-            Write-OK "Repository cloned successfully"
-        }
-    }
-
-    if (-not $hasGit -or -not (Test-Path $installDir)) {
-        Write-Host "  Downloading ZIP archive..." -ForegroundColor Yellow
-        $zipPath = "$env:TEMP\InvokeX.zip"
-        Invoke-WebRequest -Uri $repoZip -OutFile $zipPath -UseBasicParsing
-        Expand-Archive -Path $zipPath -DestinationPath "$env:TEMP\InvokeX-extract" -Force
-        # Move extracted folder to install dir
-        $extractedDir = Get-ChildItem "$env:TEMP\InvokeX-extract" | Select-Object -First 1
-        if (-not (Test-Path "C:\Tools")) { New-Item -ItemType Directory -Path "C:\Tools" -Force | Out-Null }
-        Move-Item $extractedDir.FullName $installDir -Force
-        Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
-        Remove-Item "$env:TEMP\InvokeX-extract" -Recurse -Force -ErrorAction SilentlyContinue
-        Write-OK "Downloaded and extracted successfully"
-    }
-}
-
-# ── 4. Install npm dependencies ──
-Write-Step "Installing dependencies..."
-Push-Location $installDir
-try {
-    npm install --production 2>&1 | Out-Null
-    Write-OK "Dependencies installed"
+    $iconUrl = "https://raw.githubusercontent.com/GoblinRules/InvokeX/main/assets/icon1.ico"
+    Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath -UseBasicParsing -ErrorAction Stop
 } catch {
-    Write-Err "npm install failed: $($_.Exception.Message)"
-    Pop-Location
-    exit 1
+    Write-Warn "Could not download icon (shortcuts will use default icon)"
 }
-Pop-Location
 
 # ── 5. Create shortcuts ──
 Write-Step "Creating shortcuts..."
-
-# Find electron.exe
-$electronExe = Join-Path $installDir "node_modules\electron\dist\electron.exe"
-$iconPath = Join-Path $installDir "assets\icon1.ico"
 
 # Desktop shortcut
 try {
@@ -166,8 +91,7 @@ try {
     $shortcutPath = Join-Path $desktopPath "InvokeX.lnk"
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($shortcutPath)
-    $Shortcut.TargetPath = $electronExe
-    $Shortcut.Arguments = "."
+    $Shortcut.TargetPath = $exePath
     $Shortcut.WorkingDirectory = $installDir
     $Shortcut.Description = "InvokeX v2.0 — Modern Windows Toolkit"
     if (Test-Path $iconPath) { $Shortcut.IconLocation = $iconPath }
@@ -179,13 +103,12 @@ try {
 
 # Start menu shortcut
 try {
-    $startMenuPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\InvokeX"
-    if (-not (Test-Path $startMenuPath)) { New-Item -ItemType Directory -Path $startMenuPath -Force | Out-Null }
-    $startShortcut = Join-Path $startMenuPath "InvokeX.lnk"
+    $startMenuDir = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\InvokeX"
+    if (-not (Test-Path $startMenuDir)) { New-Item -ItemType Directory -Path $startMenuDir -Force | Out-Null }
+    $startShortcut = Join-Path $startMenuDir "InvokeX.lnk"
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($startShortcut)
-    $Shortcut.TargetPath = $electronExe
-    $Shortcut.Arguments = "."
+    $Shortcut.TargetPath = $exePath
     $Shortcut.WorkingDirectory = $installDir
     $Shortcut.Description = "InvokeX v2.0 — Modern Windows Toolkit"
     if (Test-Path $iconPath) { $Shortcut.IconLocation = $iconPath }
@@ -195,7 +118,7 @@ try {
     Write-Warn "Could not create start menu shortcut: $($_.Exception.Message)"
 }
 
-# ── 6. Launch InvokeX ──
+# ── 6. Done ──
 Write-Step "Installation complete!"
 Write-Host @"
 
@@ -205,9 +128,7 @@ Write-Host @"
   ║  Location: C:\Tools\InvokeX         ║
   ║  Shortcut: Desktop & Start Menu     ║
   ║                                     ║
-  ║  To run:   Double-click shortcut    ║
-  ║     or:    cd C:\Tools\InvokeX      ║
-  ║            npm run dev              ║
+  ║  Self-contained — no dependencies!  ║
   ║                                     ║
   ║  To update: Re-run this command     ║
   ║  To remove: Run uninstall.ps1       ║
@@ -218,5 +139,5 @@ Write-Host @"
 $launch = Read-Host "Launch InvokeX now? (Y/n)"
 if ($launch -ne 'n' -and $launch -ne 'N') {
     Write-Host "  Starting InvokeX..." -ForegroundColor Cyan
-    Start-Process -FilePath $electronExe -ArgumentList "." -WorkingDirectory $installDir
+    Start-Process -FilePath $exePath -WorkingDirectory $installDir
 }

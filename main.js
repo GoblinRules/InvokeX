@@ -24,7 +24,13 @@ let mainWindow;
 // Section 1: Logging
 // ──────────────────────────────────────────────
 
-const logsDir = path.join(__dirname, 'logs');
+// Logs dir: use userData for packaged builds (asar is read-only), __dirname for dev
+let logsDir;
+if (app.isPackaged) {
+    logsDir = path.join(app.getPath('userData'), 'logs');
+} else {
+    logsDir = path.join(__dirname, 'logs');
+}
 if (!fs.existsSync(logsDir)) {
     fs.mkdirSync(logsDir, { recursive: true });
 }
