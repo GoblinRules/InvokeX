@@ -104,7 +104,10 @@ ipcMain.handle('check-admin', async () => {
 
 // Restart the app elevated (as administrator)
 ipcMain.handle('restart-as-admin', async () => {
-    const exePath = process.execPath;
+    // For portable builds, process.execPath points to the temp-extracted electron.exe
+    // which is missing ffmpeg.dll when launched standalone. Use PORTABLE_EXECUTABLE_FILE
+    // (set by electron-builder) to get the actual portable EXE path instead.
+    const exePath = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
     const args = process.argv.slice(1);
     try {
         // Build the PowerShell command with proper escaping for paths with spaces
