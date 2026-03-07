@@ -51,26 +51,27 @@ if (-not (Test-Path $installDir)) {
 # ── 3. Download InvokeX.exe ──
 Write-Step "Downloading InvokeX.exe (~75MB)..."
 $exePath = Join-Path $installDir $exeName
+
+# Kill any running instance so we can overwrite the EXE
+$running = Get-Process -Name "InvokeX" -ErrorAction SilentlyContinue
+if ($running) {
+    Write-Warn "InvokeX is currently running — closing it for update..."
+    $running | Stop-Process -Force
+    Start-Sleep -Seconds 2
+}
+
 try {
     Write-Host "  This may take a minute depending on your connection..." -ForegroundColor Yellow
-    # Use BITS for reliable large file download with progress
     $tempDownload = "$env:TEMP\InvokeX_download.exe"
-    Start-BitsTransfer -Source $releaseUrl -Destination $tempDownload -Description "Downloading InvokeX" -DisplayName "InvokeX Installer"
+    Invoke-WebRequest -Uri $releaseUrl -OutFile $tempDownload -UseBasicParsing
     Move-Item $tempDownload $exePath -Force
     $fileSizeMB = [math]::Round((Get-Item $exePath).Length / 1MB, 1)
     Write-OK "Downloaded InvokeX.exe ($fileSizeMB MB)"
 } catch {
-    # Fallback to Invoke-WebRequest if BITS fails
-    Write-Warn "BITS transfer failed, trying direct download..."
-    try {
-        Invoke-WebRequest -Uri $releaseUrl -OutFile $exePath -UseBasicParsing
-        $fileSizeMB = [math]::Round((Get-Item $exePath).Length / 1MB, 1)
-        Write-OK "Downloaded InvokeX.exe ($fileSizeMB MB)"
-    } catch {
-        Write-Err "Failed to download InvokeX.exe: $($_.Exception.Message)"
-        Write-Host "  Try downloading manually from: https://github.com/GoblinRules/InvokeX/releases" -ForegroundColor Yellow
-        exit 1
-    }
+    Write-Err "Failed to download InvokeX.exe: $($_.Exception.Message)"
+    Write-Host "  Try downloading manually from: https://github.com/GoblinRules/InvokeX/releases" -ForegroundColor Yellow
+    # Clean up temp file if it exists
+    if (Test-Path "$env:TEMP\InvokeX_download.exe") { Remove-Item "$env:TEMP\InvokeX_download.exe" -Force -EA SilentlyContinue }
 }
 
 # ── 4. Download icon for shortcuts ──
