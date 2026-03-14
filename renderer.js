@@ -157,6 +157,7 @@ const TWEAKS = [
         description: 'Set Google Chrome as the default web browser',
         buttons: [
             { text: 'Set Chrome Default', style: 'primary', action: 'powershell', command: `$cp='C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';if(-not (Test-Path $cp)){Write-Host 'Chrome not found at expected path. Install Chrome first.';return};Write-Host 'Setting Chrome as default browser...';$sid=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value;$prots=@('http','https','.htm','.html');foreach($p in $prots){$regBase="HKCU:\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\$p\\UserChoice";if($p.StartsWith('.')){$regBase="HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\$p\\UserChoice"};try{if(Test-Path $regBase){Remove-Item $regBase -Force -EA SilentlyContinue} }catch{}};Start-Process $cp -ArgumentList '--make-default-browser';Start-Sleep -Seconds 2;Write-Host 'Chrome has been launched with --make-default-browser flag.';Write-Host 'If prompted, confirm Chrome as your default browser.';Write-Host 'Alternatively, Settings will open for manual confirmation:';Start-Process 'ms-settings:defaultapps'` },
+            { text: 'Restore Defaults', style: 'secondary', action: 'powershell', command: `Write-Host 'Opening Default Apps settings...';Write-Host 'Use the Windows Settings panel to choose your preferred default browser.';Start-Process 'ms-settings:defaultapps'` },
             { text: 'Check Current', style: 'secondary', action: 'powershell', command: `try{$h=(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice' -EA SilentlyContinue).ProgId;$hs=(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\https\\UserChoice' -EA SilentlyContinue).ProgId;Write-Host "HTTP handler: $h";Write-Host "HTTPS handler: $hs";if($h -like '*Chrome*'){Write-Host 'Chrome IS the default browser.'}else{Write-Host 'Chrome is NOT the default browser.'}}catch{Write-Host "Error: $_"}` }
         ]
     },
@@ -195,8 +196,13 @@ const TWEAKS = [
                 text: 'Create Account', style: 'primary', action: 'custom', handler: async () => {
                     const pw = await showPasswordDialog(); if (!pw) return;
                     logToTerminal('Creating Admin account...', 'INFO');
-                    await window.invokeX.runPowerShell(`$p=ConvertTo-SecureString '${pw.replace(/'/g, "''")}' -AsPlainText -Force;try{New-LocalUser -Name 'Admin' -Password $p -FullName 'Administrator' -Description 'Created by InvokeX' -PasswordNeverExpires -EA Stop;Add-LocalGroupMember -Group 'Administrators' -Member 'Admin' -EA SilentlyContinue;Add-LocalGroupMember -Group 'Remote Desktop Users' -Member 'Admin' -EA SilentlyContinue;Write-Host 'Admin account created.'}catch{if($_.Exception.Message -like '*already exists*'){Write-Host 'Admin exists. Updating groups...';Add-LocalGroupMember -Group 'Administrators' -Member 'Admin' -EA SilentlyContinue;Add-LocalGroupMember -Group 'Remote Desktop Users' -Member 'Admin' -EA SilentlyContinue;Write-Host 'Groups updated.'}else{Write-Host "Error: $_"}}`);
+                    await window.invokeX.runPowerShell(`$p=ConvertTo-SecureString '${pw.replace(/'/g, "''")}' -AsPlainText -Force;$isAdmin=([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator');if(-not $isAdmin){Write-Host 'ERROR: This action requires Administrator privileges. Please restart InvokeX as Admin.' -ForegroundColor Red;return};try{New-LocalUser -Name 'Admin' -Password $p -FullName 'Administrator' -Description 'Created by InvokeX' -PasswordNeverExpires -EA Stop;Write-Host 'User created successfully.'}catch{if($_.Exception.Message -like '*already exists*'){Write-Host 'Admin user already exists.'}else{Write-Host "Error creating user: $_";return}};try{Add-LocalGroupMember -Group 'Administrators' -Member 'Admin' -EA Stop;Write-Host 'Added to Administrators group.'}catch{if($_.Exception.Message -like '*already a member*'){Write-Host 'Already in Administrators group.'}else{Write-Host "WARNING: Failed to add to Administrators: $_"}};try{Add-LocalGroupMember -Group 'Remote Desktop Users' -Member 'Admin' -EA Stop;Write-Host 'Added to Remote Desktop Users group.'}catch{if($_.Exception.Message -like '*already a member*'){Write-Host 'Already in Remote Desktop Users group.'}else{Write-Host "WARNING: Failed to add to Remote Desktop Users: $_"}};Write-Host '';Write-Host 'Admin account setup complete.'`);
                 }
+            },
+            {
+                text: 'Delete Account', style: 'danger', action: 'powershell',
+                confirm: true, confirmTitle: 'Delete Admin Account', confirmDesc: 'This will permanently delete the Admin user account and all associated data.',
+                command: `$isAdmin=([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator');if(-not $isAdmin){Write-Host 'ERROR: This action requires Administrator privileges.';return};try{Remove-LocalUser -Name 'Admin' -EA Stop;Write-Host 'Admin account deleted successfully.'}catch{if($_.Exception.Message -like '*not found*' -or $_.Exception.Message -like '*cannot find*'){Write-Host 'Admin account does not exist.'}else{Write-Host "Error: $_"}}`
             },
             { text: 'Check Status', style: 'secondary', action: 'powershell', command: `try{$u=Get-LocalUser -Name 'Admin' -EA Stop;$g=Get-LocalGroup|Where-Object{(Get-LocalGroupMember $_ -EA SilentlyContinue).Name -like '*\\Admin'}|Select-Object -ExpandProperty Name;Write-Host "Admin account: EXISTS (Enabled: $($u.Enabled))";Write-Host "Groups: $($g -join ', ')"}catch{Write-Host 'Admin account: DOES NOT EXIST'}` }
         ]
@@ -205,9 +211,9 @@ const TWEAKS = [
         id: 'enable-rdp', name: 'Enable Remote Desktop', tags: ['network', 'security'],
         description: 'Enable Remote Desktop connections and configure firewall rules',
         buttons: [
-            { text: 'Enable RDP', style: 'success', action: 'powershell', command: `Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server' -Name 'fDenyTSConnections' -Value 0 -Force;Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name 'UserAuthentication' -Value 1 -Force;Enable-NetFirewallRule -DisplayGroup 'Remote Desktop' -EA SilentlyContinue;Write-Host 'Remote Desktop enabled with NLA.'` },
-            { text: 'Disable RDP', style: 'danger', action: 'powershell', confirm: true, confirmTitle: 'Disable RDP', confirmDesc: 'This will disable Remote Desktop access.', command: `Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server' -Name 'fDenyTSConnections' -Value 1 -Force;Disable-NetFirewallRule -DisplayGroup 'Remote Desktop' -EA SilentlyContinue;Write-Host 'Remote Desktop disabled.'` },
-            { text: 'Check Status', style: 'secondary', action: 'powershell', command: `$r=(Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server' -Name 'fDenyTSConnections').fDenyTSConnections;$n=(Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name 'UserAuthentication' -EA SilentlyContinue).UserAuthentication;Write-Host "Remote Desktop: $(if($r -eq 0){'ENABLED'}else{'DISABLED'})";Write-Host "NLA: $(if($n -eq 1){'ENABLED'}else{'DISABLED'})"` }
+            { text: 'Enable RDP', style: 'success', action: 'powershell', command: `Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server' -Name 'fDenyTSConnections' -Value 0 -Force;Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name 'UserAuthentication' -Value 1 -Force;$rules=Get-NetFirewallRule -DisplayGroup 'Remote Desktop' -EA SilentlyContinue;if($rules){Enable-NetFirewallRule -DisplayGroup 'Remote Desktop';Write-Host 'Existing firewall rules enabled.'}else{Write-Host 'No existing RDP firewall rules found. Creating rules...';New-NetFirewallRule -DisplayName 'Remote Desktop (TCP-In)' -Direction Inbound -Protocol TCP -LocalPort 3389 -Action Allow -Enabled True -Profile Any -Description 'Created by InvokeX' -EA SilentlyContinue|Out-Null;New-NetFirewallRule -DisplayName 'Remote Desktop (UDP-In)' -Direction Inbound -Protocol UDP -LocalPort 3389 -Action Allow -Enabled True -Profile Any -Description 'Created by InvokeX' -EA SilentlyContinue|Out-Null;Write-Host 'Created RDP firewall rules (TCP+UDP 3389).'};Write-Host 'Remote Desktop enabled with NLA.'` },
+            { text: 'Disable RDP', style: 'danger', action: 'powershell', confirm: true, confirmTitle: 'Disable RDP', confirmDesc: 'This will disable Remote Desktop access.', command: `Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server' -Name 'fDenyTSConnections' -Value 1 -Force;Disable-NetFirewallRule -DisplayGroup 'Remote Desktop' -EA SilentlyContinue;Remove-NetFirewallRule -DisplayName 'Remote Desktop (TCP-In)' -EA SilentlyContinue;Remove-NetFirewallRule -DisplayName 'Remote Desktop (UDP-In)' -EA SilentlyContinue;Write-Host 'Remote Desktop disabled. Firewall rules removed.'` },
+            { text: 'Check Status', style: 'secondary', action: 'powershell', command: `$r=(Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server' -Name 'fDenyTSConnections').fDenyTSConnections;$n=(Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' -Name 'UserAuthentication' -EA SilentlyContinue).UserAuthentication;Write-Host "Remote Desktop: $(if($r -eq 0){'ENABLED'}else{'DISABLED'})";Write-Host "NLA: $(if($n -eq 1){'ENABLED'}else{'DISABLED'})";$fw=Get-NetFirewallRule -DisplayGroup 'Remote Desktop' -EA SilentlyContinue;$fwCustom=Get-NetFirewallRule -DisplayName 'Remote Desktop (TCP-In)' -EA SilentlyContinue;if($fw){Write-Host "Firewall: $($fw.Count) built-in rules (Enabled: $(($fw|Where-Object{$_.Enabled -eq 'True'}).Count))"}elseif($fwCustom){Write-Host 'Firewall: InvokeX-created rules active'}else{Write-Host 'Firewall: NO RDP rules found (connections will be blocked!)'}` }
         ]
     },
     // ═══ NEW TWEAKS ═══
@@ -220,8 +226,8 @@ const TWEAKS = [
                 confirm: true, confirmTitle: 'Reset Windows Update',
                 confirmDesc: 'This resets your Windows Update settings to default out-of-box settings. It removes ANY policy or customization that has been made to Windows Update.',
                 command: `
-                    $wuPath='HKLM:\\\\SOFTWARE\\\\Policies\\\\Microsoft\\\\Windows\\\\WindowsUpdate'
-                    $auPath='HKLM:\\\\SOFTWARE\\\\Policies\\\\Microsoft\\\\Windows\\\\WindowsUpdate\\\\AU'
+                    $wuPath='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate'
+                    $auPath='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU'
                     if(Test-Path $auPath){Remove-Item $auPath -Recurse -Force -EA SilentlyContinue;Write-Host 'Removed AU policies'}
                     if(Test-Path $wuPath){
                         Remove-ItemProperty $wuPath -Name 'DeferFeatureUpdates' -EA SilentlyContinue
@@ -230,7 +236,7 @@ const TWEAKS = [
                         Remove-ItemProperty $wuPath -Name 'DeferQualityUpdatesPeriodInDays' -EA SilentlyContinue
                         Write-Host 'Removed deferral policies'
                     }
-                    $uxPath='HKLM:\\\\SOFTWARE\\\\Microsoft\\\\WindowsUpdate\\\\UX\\\\Settings'
+                    $uxPath='HKLM:\\SOFTWARE\\Microsoft\\WindowsUpdate\\UX\\Settings'
                     @('PauseUpdatesExpiryTime','PauseFeatureUpdatesStartTime','PauseFeatureUpdatesEndTime','PauseQualityUpdatesStartTime','PauseQualityUpdatesEndTime')|ForEach-Object{Remove-ItemProperty $uxPath -Name $_ -EA SilentlyContinue}
                     Set-Service -Name wuauserv -StartupType Manual -EA SilentlyContinue
                     Start-Service -Name wuauserv -EA SilentlyContinue
@@ -244,8 +250,8 @@ const TWEAKS = [
                 confirm: true, confirmTitle: 'Security Update Configuration',
                 confirmDesc: 'Feature updates delayed by 365 days. Security updates installed after 4 days. Recommended for most users. Note: Only applies to Pro/Enterprise editions with Group Policy support.',
                 command: `
-                    $wuPath='HKLM:\\\\SOFTWARE\\\\Policies\\\\Microsoft\\\\Windows\\\\WindowsUpdate'
-                    $auPath='HKLM:\\\\SOFTWARE\\\\Policies\\\\Microsoft\\\\Windows\\\\WindowsUpdate\\\\AU'
+                    $wuPath='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate'
+                    $auPath='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU'
                     if(-not (Test-Path $wuPath)){New-Item -Path $wuPath -Force|Out-Null}
                     if(-not (Test-Path $auPath)){New-Item -Path $auPath -Force|Out-Null}
                     Set-ItemProperty $wuPath -Name 'DeferFeatureUpdates' -Value 1 -Type DWord -Force
@@ -267,8 +273,8 @@ const TWEAKS = [
                 confirm: true, confirmTitle: '⚠️ Disable ALL Windows Updates',
                 confirmDesc: '!! NOT RECOMMENDED !! This disables ALL Windows Updates including security patches. Your system will be vulnerable. Only use for isolated/air-gapped systems.',
                 command: `
-                    $wuPath='HKLM:\\\\SOFTWARE\\\\Policies\\\\Microsoft\\\\Windows\\\\WindowsUpdate'
-                    $auPath='HKLM:\\\\SOFTWARE\\\\Policies\\\\Microsoft\\\\Windows\\\\WindowsUpdate\\\\AU'
+                    $wuPath='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate'
+                    $auPath='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU'
                     if(-not (Test-Path $wuPath)){New-Item -Path $wuPath -Force|Out-Null}
                     if(-not (Test-Path $auPath)){New-Item -Path $auPath -Force|Out-Null}
                     Set-ItemProperty $auPath -Name 'NoAutoUpdate' -Value 1 -Type DWord -Force
@@ -286,7 +292,7 @@ const TWEAKS = [
                 confirm: true, confirmTitle: 'Pause Updates', confirmDesc: 'Pause ALL Windows Updates for 35 days?',
                 command: `
                     $d=(Get-Date).AddDays(35).ToString('yyyy-MM-ddTHH:mm:ssZ')
-                    $uxPath='HKLM:\\\\SOFTWARE\\\\Microsoft\\\\WindowsUpdate\\\\UX\\\\Settings'
+                    $uxPath='HKLM:\\SOFTWARE\\Microsoft\\WindowsUpdate\\UX\\Settings'
                     Set-ItemProperty -Path $uxPath -Name 'PauseUpdatesExpiryTime' -Value $d -Force
                     Set-ItemProperty -Path $uxPath -Name 'PauseFeatureUpdatesStartTime' -Value (Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ') -Force
                     Set-ItemProperty -Path $uxPath -Name 'PauseFeatureUpdatesEndTime' -Value $d -Force
@@ -299,7 +305,7 @@ const TWEAKS = [
             {
                 text: '▶️ Resume Updates', style: 'secondary', action: 'powershell',
                 command: `
-                    $uxPath='HKLM:\\\\SOFTWARE\\\\Microsoft\\\\WindowsUpdate\\\\UX\\\\Settings'
+                    $uxPath='HKLM:\\SOFTWARE\\Microsoft\\WindowsUpdate\\UX\\Settings'
                     @('PauseUpdatesExpiryTime','PauseFeatureUpdatesStartTime','PauseFeatureUpdatesEndTime','PauseQualityUpdatesStartTime','PauseQualityUpdatesEndTime')|ForEach-Object{Remove-ItemProperty $uxPath -Name $_ -EA SilentlyContinue}
                     Write-Host 'Windows Updates resumed.'
                 `
@@ -308,8 +314,8 @@ const TWEAKS = [
                 text: 'Check Status', style: 'secondary', action: 'powershell',
                 command: `
                     Write-Host '=== Windows Update Configuration ==='
-                    $wuPath='HKLM:\\\\SOFTWARE\\\\Policies\\\\Microsoft\\\\Windows\\\\WindowsUpdate'
-                    $auPath='HKLM:\\\\SOFTWARE\\\\Policies\\\\Microsoft\\\\Windows\\\\WindowsUpdate\\\\AU'
+                    $wuPath='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate'
+                    $auPath='HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU'
                     $noAU=(Get-ItemProperty $auPath -Name 'NoAutoUpdate' -EA SilentlyContinue).NoAutoUpdate
                     $auOpt=(Get-ItemProperty $auPath -Name 'AUOptions' -EA SilentlyContinue).AUOptions
                     $deferFeat=(Get-ItemProperty $wuPath -Name 'DeferFeatureUpdatesPeriodInDays' -EA SilentlyContinue).DeferFeatureUpdatesPeriodInDays
@@ -319,7 +325,7 @@ const TWEAKS = [
                     if($noAU -eq 1){Write-Host 'Mode: DISABLED (all updates off)';Write-Host 'WARNING: System is vulnerable!'}
                     elseif($deferFeat -gt 0){Write-Host "Mode: SECURITY";Write-Host "Feature defer: $deferFeat days";Write-Host "Quality defer: $deferQual days"}
                     else{Write-Host 'Mode: DEFAULT (no custom policies)'}
-                    $exp=(Get-ItemProperty 'HKLM:\\\\SOFTWARE\\\\Microsoft\\\\WindowsUpdate\\\\UX\\\\Settings' -Name 'PauseUpdatesExpiryTime' -EA SilentlyContinue).PauseUpdatesExpiryTime
+                    $exp=(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\WindowsUpdate\\UX\\Settings' -Name 'PauseUpdatesExpiryTime' -EA SilentlyContinue).PauseUpdatesExpiryTime
                     if($exp){Write-Host "Paused until: $exp"}
                 `
             }
@@ -339,7 +345,7 @@ const TWEAKS = [
                     const result = await showStartupAddDialog();
                     if (!result) return;
                     logToTerminal(`Adding startup item: ${result.name} → ${result.path}`, 'INFO');
-                    await window.invokeX.runPowerShell(`Set-ItemProperty -Path 'HKCU:\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run' -Name '${result.name.replace(/'/g, "''")}' -Value '"${result.path.replace(/'/g, "''")}"' -Force; Write-Host 'Added startup item: ${result.name}'`);
+                    await window.invokeX.runPowerShell(`Set-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run' -Name '${result.name.replace(/'/g, "''")}' -Value '"${result.path.replace(/'/g, "''")}"' -Force; Write-Host 'Added startup item: ${result.name}'`);
                 }
             },
             {
@@ -350,10 +356,10 @@ const TWEAKS = [
                     const confirmed = await showConfirmDialog('Remove Startup Item', `Remove "${name}" from startup?`);
                     if (!confirmed) return;
                     logToTerminal(`Removing startup item: ${name}`, 'INFO');
-                    await window.invokeX.runPowerShell(`Remove-ItemProperty -Path 'HKCU:\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run' -Name '${name.replace(/'/g, "''")}' -Force -EA SilentlyContinue; Write-Host 'Removed startup item: ${name}'`);
+                    await window.invokeX.runPowerShell(`Remove-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run' -Name '${name.replace(/'/g, "''")}' -Force -EA SilentlyContinue; Write-Host 'Removed startup item: ${name}'`);
                 }
             },
-            { text: 'Open Startup Folder', style: 'secondary', action: 'powershell', command: `Start-Process explorer.exe "$env:APPDATA\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup";Write-Host 'Startup folder opened.'` },
+            { text: 'Open Startup Folder', style: 'secondary', action: 'powershell', command: `Start-Process explorer.exe "$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Startup";Write-Host 'Startup folder opened.'` },
             { text: 'Open Task Manager', style: 'secondary', action: 'powershell', command: `Start-Process taskmgr.exe '/7';Write-Host 'Task Manager opened (Startup tab).'` }
         ]
     },
@@ -371,6 +377,7 @@ const TWEAKS = [
         description: 'DNS configuration, flush DNS, reset Winsock, view network info',
         buttons: [
             { text: 'Set Google DNS', style: 'primary', action: 'powershell', confirm: true, confirmTitle: 'Set Google DNS', confirmDesc: 'Set DNS servers to 8.8.8.8 and 8.8.4.4?', command: `$adapters=Get-NetAdapter|Where-Object{$_.Status -eq 'Up'};foreach($a in $adapters){Set-DnsClientServerAddress -InterfaceIndex $a.ifIndex -ServerAddresses ('8.8.8.8','8.8.4.4');Write-Host "Set Google DNS on: $($a.Name)"};ipconfig /flushdns;Write-Host 'DNS cache flushed.'` },
+            { text: 'Restore Default DNS', style: 'secondary', action: 'powershell', confirm: true, confirmTitle: 'Restore Default DNS', confirmDesc: 'Reset DNS servers to automatic (DHCP) on all active adapters?', command: `$adapters=Get-NetAdapter|Where-Object{$_.Status -eq 'Up'};foreach($a in $adapters){Set-DnsClientServerAddress -InterfaceIndex $a.ifIndex -ResetServerAddresses;Write-Host "Restored default DNS on: $($a.Name)"};ipconfig /flushdns;Write-Host 'DNS reset to automatic (DHCP). DNS cache flushed.'` },
             { text: 'Reset Network', style: 'danger', action: 'powershell', confirm: true, confirmTitle: 'Reset Network Stack', confirmDesc: 'This will reset Winsock and IP configuration. Connection will be briefly interrupted.', command: `Write-Host 'Resetting Winsock...';netsh winsock reset;Write-Host 'Resetting IP config...';netsh int ip reset;Write-Host 'Flushing DNS...';ipconfig /flushdns;Write-Host 'Network stack reset. Restart may be required.'` },
             { text: 'View Network Info', style: 'secondary', action: 'powershell', command: `Get-NetAdapter|Where-Object{$_.Status -eq 'Up'}|ForEach-Object{$ip=Get-NetIPAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4 -EA SilentlyContinue;$dns=Get-DnsClientServerAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4 -EA SilentlyContinue;Write-Host "Adapter: $($_.Name) [$($_.LinkSpeed)]";Write-Host "  IP: $($ip.IPAddress)";Write-Host "  DNS: $($dns.ServerAddresses -join ', ')";Write-Host "  MAC: $($_.MacAddress)";Write-Host ''}` }
         ]
@@ -1005,9 +1012,9 @@ async function showStartupViewDialog() {
 
         const entryCountBefore = terminalEl.querySelectorAll('.log-message').length;
         await window.invokeX.runPowerShell(`
-            $reg=Get-ItemProperty 'HKCU:\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run' -EA SilentlyContinue
+            $reg=Get-ItemProperty 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run' -EA SilentlyContinue
             if($reg){$reg.PSObject.Properties|Where-Object{$_.Name -notlike 'PS*'}|ForEach-Object{Write-Host "SVIEW|REG|$($_.Name)|$($_.Value)"}}
-            $folder="$env:APPDATA\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup"
+            $folder="$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"
             if(Test-Path $folder){Get-ChildItem $folder -EA SilentlyContinue|ForEach-Object{Write-Host "SVIEW|FOLDER|$($_.Name)|$($_.FullName)"}}
         `);
 
@@ -1056,7 +1063,7 @@ async function showStartupViewDialog() {
                     }
                     overlay.style.display = '';
                     if (source === 'REG') {
-                        await window.invokeX.runPowerShell(`Remove-ItemProperty -Path 'HKCU:\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run' -Name '${itemName.replace(/'/g, "''")}' -Force -EA SilentlyContinue; Write-Host 'Removed: ${itemName}'`);
+                        await window.invokeX.runPowerShell(`Remove-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run' -Name '${itemName.replace(/'/g, "''")}' -Force -EA SilentlyContinue; Write-Host 'Removed: ${itemName}'`);
                     } else {
                         await window.invokeX.runPowerShell(`Remove-Item '${itemPath.replace(/'/g, "''")}' -Force -EA SilentlyContinue; Write-Host 'Removed: ${itemName}'`);
                     }
@@ -1130,7 +1137,7 @@ function showStartupRemoveDialog() {
         // Fetch startup items from registry
         try {
             const entryCountBefore = terminalEl.querySelectorAll('.log-message').length;
-            await window.invokeX.runPowerShell(`$items=(Get-ItemProperty 'HKCU:\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run' -EA SilentlyContinue);$items.PSObject.Properties|Where-Object{$_.Name -notlike 'PS*'}|ForEach-Object{Write-Host "STARTUPITEM|$($_.Name)|$($_.Value)"}`);
+            await window.invokeX.runPowerShell(`$items=(Get-ItemProperty 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run' -EA SilentlyContinue);$items.PSObject.Properties|Where-Object{$_.Name -notlike 'PS*'}|ForEach-Object{Write-Host "STARTUPITEM|$($_.Name)|$($_.Value)"}`);
 
             setTimeout(() => {
                 const items = [];
